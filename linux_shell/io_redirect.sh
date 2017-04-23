@@ -24,5 +24,27 @@ find . -type f -print | wc -l
 #and print then count the number of line. the outcomes show how much file we have in current directory 
 
 
+#pipe can receive stdin and then through all kinds of filters make the output become the resoult you want
+#the filters include :
+#1.sort :
+#2.uniq :uniq always used to receive the sorted result and get rid of the repeated one.
+#3.grep :receive data based as line,search speacial character pattern and output it.
+#4.fmt : receive files from input and output as specialed format.
+#5.pr : 		#6.head  		#7.tail			
+#8.tr : can used to modify(upper/lower characters),repeated,delete the input then output, for example:it can transfor
+#the file used in DOS to UNIX
+#9.sed 			#10. awk
+
+
+
+
+
+# lsattr: used to list the attribution of a file or directory, and the command "chattr" used to change attribution of a 
+# file or directory 
+lsattr /home/zjie/tmp/test.c     #checkout the attribution of test.c
+chattr +i /home/zjie/tmp/test.c 	# add i(immutable) attribution to test.c,now even if root can not delete the file,
+chattr +a /home/zjie/tmp/test.c 	# add a(append only) attribution to test.c,one can only write characters to the end of file 
+#and cannot modify it.but only root user can use chattr command,before you can remove a file you should remove immuable/append attribution
+ 
 
 
