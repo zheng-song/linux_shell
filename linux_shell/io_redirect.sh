@@ -80,6 +80,29 @@ sudo userdel -r zhengsong #we recommend you use this, because if you didn't add 
 
 #	"usermod" used to modify all kind of attrbution of users, 
 #	"groupmod" used to modify group name or group ID.
+#	"who" used to show home directory of current login user.
+# 	"w" used to show all login user's information,it's a extension of command "who".
+#	"mesg" used to prevent other users to access your terminal."mesg y" admit others send message to my terminal,"mesg n"
+#refuse others send meaasges to my terminal.
+#	"wall" used to send message to all login user,those message alway show when login or logout,
+wall reboot after 5 min, please logout
+# 	"write [username]" used to send message to a particual user  
+write zhengsong 
+#"you will be force logout in 5 min,please save your important work now."
+#use CTRL+c to terminate the process.
 
 
+# 	"strace" used to trace system call and signal of a command
+strace ls -la
+#	"ltrace" used to trace Library Functions of a command.
+ltrace ls  
+
+
+
+# 	"free"  show memory and cache information based as byte.
+free
+
+#	"logrotate" used to manage system log file,it provide function of rotary,compress,delete,send eamil...usually we use
+#"cron"regularly preform "logrotate" to manage log file.
+cat /etc/rogrotate.conf  # 	
  
