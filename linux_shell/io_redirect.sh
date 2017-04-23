@@ -45,6 +45,41 @@ lsattr /home/zjie/tmp/test.c     #checkout the attribution of test.c
 chattr +i /home/zjie/tmp/test.c 	# add i(immutable) attribution to test.c,now even if root can not delete the file,
 chattr +a /home/zjie/tmp/test.c 	# add a(append only) attribution to test.c,one can only write characters to the end of file 
 #and cannot modify it.but only root user can use chattr command,before you can remove a file you should remove immuable/append attribution
+
+
+
+#====================================================================================================================
+#                                          1.7 job control
+#  "ps" 	"kill"		"jobs(show the job directory at current shell)"		"bg(transfer a job to background)"		
+#  "fg(transfer a job to foreground)"
+#	you can use "xload" as an example:
+xload & #make the xload program run in background ,and if you want to make it run in foreground, you can use:
+fg xload # you can use CTRL+"z" to make it stop,and the program trun into IDLE status.but how can you turn the IDLE status
+# into ALIVE status ???????? .you can use "kill -9 [program ID]" to force kill it immediately.
+# the "ps"  command is powerful than "jobs". if a job has been terminated,you can not kill it by "kill".but when you make it 
+#alive ,such as "fg xload",the job will receive the kill signal immediately and be killed.
+# "kill -l" command can list the signal type .you can use it such as "kill -SIGKILL/-9 [program ID]" to force kill it
+
+
+
+
+#====================================================================================================================
+#										1.8 system administrator command summary
+#	"users" equals to "who -q" used to show the users login currently.
+#	"groups" used to show groups information login in current shell 
+#	"useradd"/"adduser(adduser is a symbol link to usersdd,wo use useradd usually)" used to add a user, "userdel" used to delete a user 
+#normally we use "useradd [username]" first and then use "passwd [username]" to special a password to it.
+sudo useradd zhengsong
+sudo passwd zhengsong
+sudo userdel zhengsong
+sudo userdel -r zhengsong #we recommend you use this, because if you didn't add -r ,the /home/zhengsong directory will not be clean off
+#????? when I use "useradd zhengsong" and "passwd zhengsong" create a new user and then "su - zhengsong" there comes out a promot
+#????? saying "there have no directory,we will login in use HOME=/ ", but when I use "cat /dev/passwd | grep ^zhengsong" I can see 
+#????? my home directory is /home/zhengsong , how it happens !!.
+#
+
+#	"usermod" used to modify all kind of attrbution of users, 
+#	"groupmod" used to modify group name or group ID.
+
+
  
-
-
