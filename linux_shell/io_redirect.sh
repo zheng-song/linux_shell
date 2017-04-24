@@ -105,4 +105,41 @@ free
 #	"logrotate" used to manage system log file,it provide function of rotary,compress,delete,send eamil...usually we use
 #"cron"regularly preform "logrotate" to manage log file.
 cat /etc/rogrotate.conf  # 	
- 
+
+
+#	"cron" used to set super/common user's scheduling work
+ls -l /etc | grep cron*
+
+#	"ip" used to show and manipulate route/device/route and tunnel strategy 
+ip link show
+man ip
+
+#	"route" used to show/manipulate the IP routing table.
+route  # equles to "ip route list"
+route add defult gw 172.16.55.254
+
+
+#	"tcpdump" used to dump traffic on a network,if there have no options,then show all packages captured.
+tcpdump tcp port 21 # show the tcp packages communicate through 21 port 
+tcpdump tcp
+
+
+#	"sync" force synchronize cached writes to persisten storage
+sync
+
+#	"mkswap" used to create swap file or set up a swap area
+dd if=/dev/zero of=swapfile bs=1024 count=8192  # create a file with context filled of zero and the size is 8M
+#	"dd" used to convert and copy a file,if(read from file instead of stdin) of(write to FILE instead of stdout)
+ls -l swapfile
+mkswap swapfile 8192
+sync
+free # checkout the swap memory,you will find the swapfile didn't effect yet
+swapon swapfile # "swapon"/"swapoff" used to enable/disable devices and files for paging and swapping
+free # checkout the swap memory,you will find the swapfile effected.and the swap memory increased by 8192
+
+# mkfs.ext3/mkfs.ext4/mkfs.vfat
+
+fdisk 
+
+
+
