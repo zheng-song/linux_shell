@@ -60,3 +60,49 @@ typedef struct _ARM926_CHAN
 
 
 
+
+// TTY initialization
+#ifdef INCLUDE_TTY_DEV
+if (NUM_TTY > 0){
+	ttyDrv();
+}
+
+for (ix = 0; ix< NUM_TTY; ix++)
+{
+#if (defined(INCLUDE_WDB)  && (WDB_COMM_TYPE == WDB_COMM_SERIAL))	
+	if (ix == WDB_TTY_CHANNEL)		//don't use WDBs channel
+		continue;
+#endif
+	sprintf(tyName,"%s%d","tyCo/",ix);
+	(void)ttyDevCreate(tyName,sysSerialChanGet(ix),512,512);
+	if (ix == CONSOLE_TTY)		//init the tty console
+	{
+		strcpy(consoleName,tyName);
+		consoleFd = open(consoleName,O_RDWR,0);
+		(void)ioctl(consoleFd,FIOBAUDRATE,CONSOLE_BAUD_RATE);
+		(void)ioctl(consoleFd,FIOSETOPTIONS,OPT_TERMINAL);
+	}
+}
+#endif
+
+
+STATUS ttyDevCreate(char * name, SIO_CHAN *pSioChan, int rdBufSize, int wrtBufSize);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
