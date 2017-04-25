@@ -311,3 +311,20 @@ SIO_CHAN *sysSerialChanGet(int channel)
  		status = udev->LSR;//get status again to check
  	}
  }
+
+
+
+ LOCAL int arm926UartTxStartUp(SIO_CHAN *pSioChan)
+ {
+ 	ARM926_CHAN *pChan = (ARM926_CHAN *)pSioChan;
+ 	char outChar;
+ 	if (pChan->intrmode == TRUE){
+ 		while((*pChan->getTxChar)(pChan->getTxArg,&outChar) != ERROR)
+ 			DAVINCIEVM_UART_putChar(outChar);
+ 		return OK;
+ 	}else{
+ 		return ENOSYS;
+ 	}
+ }
+
+ 
