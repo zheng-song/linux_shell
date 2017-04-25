@@ -287,3 +287,27 @@ SIO_CHAN *sysSerialChanGet(int channel)
  	}
  	return (ENOSYS);
  }
+
+
+ void arm926UartInt(ARM926_CHAN *pChan/*channel generating the interrupt*/)
+ {
+ 	char 	rByte;
+ 	UINT32 	status;
+ 	CSL_UART_S 	*udev = pChan->regs;
+ 	status = udev->LSR;
+ 	//error interrupt
+ 	if (status&(CSL_UART_LSR_RXFIFOE_MASK|CSL_UART_LSR_FE_MASK|
+ 		CSL_UART_LSR_OE_MASK|CSL_UART_LSR_PE_MASK)){
+ 		pChan->errcount++;
+ 	CSL_uartReset(pChan);
+ 	CSL_uartConfig(pChan);
+ 	CSL_uartEnable(pChan);
+ 	}
+// data receive interrupt
+ 	while(status&(CSL_UART_LSR_DR_MASK)){
+ 		CSL_FINSR(uartRegs->LCR,7,7,0);
+ 		rByte = CSL_FEXT(uartRegs->RBR,USRT_RBR_DATA);
+ 		(*pChan->putRcvChar)(pChan->putRcvArg,rByte);
+ 		status = udev->LSR;//get status again to check
+ 	}
+ }
