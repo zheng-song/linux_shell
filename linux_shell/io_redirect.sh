@@ -139,7 +139,54 @@ free # checkout the swap memory,you will find the swapfile effected.and the swap
 
 # mkfs.ext3/mkfs.ext4/mkfs.vfat
 
-fdisk 
+fdisk -l
+fdisk /dev/sda2
+
+#	"fsck" used to check/repair/debugging file system,but before you check a file system,you should umount it first
+#fdisk -l 
+df -h  # "df" can used to report file system disk space usage
+fsck /dev/sda8
+badblocks /dev/sda8
+
+#	"lsusb" used to list USB devices 	"lspci" used to list PCI device 
+lsusb
+lspci
+
+#	"chroot" used alter home dir of root user. for more details see man chroot
+chroot
+
+# 	"tmpwatch" used to auto delete the file that never visited at specified period of time. usually used in "cron"
+#to manage temporary file
+cat /etc/cron.daily/tmpwatch
+
+#	"dump" used to backup ext2/3/4 filesystem.dump can read lower disk zone,and create backup file in binary format
+#and then you can use "restore" to recover the backup file.
+man dump
+dump -0 -u -f/home/zhengsong/backup /dev/sda8 #backup /dev/sda8 to /home/zhengsong/backup
+restore ft /dev/sda8 #check file list of the file
+restore rf /dev/sda8 /home/zhengsong/backup #recover the filesystem
+
+#	"ulimit" used to set system resource upper limit "-f" used to limit file size,such as:
+ulimit -f 1000 # set file size up to 1M.
+ulimit -a #show all limit in current system.
+
+umask # used to set maskrdev
+
+lsmod
+insmod
+rmmod
+modprobe
+modinfo usbcore
+
+# 	"ldd" used to show a executable file's shared library dependency
+ldd /bin/ls
+
+#	"watch" used to re-execute command at specified time intervals,and show the result full-screen.
+watch -n 5 tail /var/log/messages
+watch -n 60 from
+watch -d ls -l
+ 
+
 
 
 
