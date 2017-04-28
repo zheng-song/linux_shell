@@ -24,3 +24,34 @@ cat ~/.bash_logout # 该文件包括每一个用户的个人系统退出程序�
 #==================================================================================================================
 #2.2 命令行解析
 # 向shell提示输入命令时，shell读取输入行并解析（parsing）命令行，然后分解为令牌（token）。
+
+env
+printenv
+
+#	"which" used to find the location of an executable file.
+which ls
+whereis ls
+
+
+set | less
+
+# 	set and unset a varible
+VAR_2="hello world"
+echo $VAR_2
+unset VAR_2
+
+# if you want to make a local variable become global,you can use "export"
+NIHAO="hello world"
+set | grep NIHAO
+env | grep NIHAO
+export NIHAO
+env | grep NIHAO
+# before "export",you can only find NIHAO in "set",he will not be in "env",after you "export",you can find it in env.
+bash
+NIHAO="你好"
+echo $NIHAO  #显示为“你好”
+exit
+echo $NIHAO  #显示为“hello world”
+unset NIHAO
+
+ 
