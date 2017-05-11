@@ -1,0 +1,67 @@
+
+		/* usbdBusCountGet() returned total number of usb host controllers in the system.each host controller has its own
+		* root hub as required by usb specification;and clients planning to enumerate USB devices using
+		* the Bus Enumeration Functions need to know the total number of the host controller in order to
+		* retrieve the Node Ids for each root hub
+		*  NOTE:the number of USB host controller is not constant,Bus controllers can be added by calling
+		*  usbdHcdAttach() and removed by calling usbdHcdDetach(). **the Dynamic Attach Function deal with
+		*  these situations automatically, and are preferred mechanism by which most clients should be
+		*  informed of device attachment and removal
+		*/
+				pUINT16 pBusCount;
+				status=usbdBusCountGet(usb_ttyusbdClientHandle, pBusCount);
+				if( status == OK){
+					printf("usbdCountGet() returned OK!,the pBusCount is %d\n",*pBusCount);
+				}else{
+					printf("usbdCountGet() Failed\n");
+				}
+
+		/*	usbdRootNodeIdGet() returns the Node ID for the root hub for the specified USB controller.busIndex is the index
+		 * of the desired USB host controller.the first host Controller is index 0 and the last controller's index is the
+		 * total number of USB host controllers - as returned by usbdBusCountGet()-minus 1.<pRootId>must be point to a
+		 * USBD_NODE_ID variable  in which the node ID if the root hub will be stored.
+		 */
+//				pUSBD_NODE_ID pRootId;
+//				status = usbdRootNodeIdGet(usb_ttyusbdClientHandle,BusIndex, pRootId);
+//				if( status == OK){
+//					printf("usbdRootNodeGet success!,pRootId is:%p\n",pRootId);
+//				}else{
+//					printf("usbdRootNodeGet failed!\n");
+//				}
+
+
+
+		/*	usbdHubPortCountget()returns number of ports connected to a hub ,provides clients with a convenient mechanism to
+		 * retrieve the number of downstream ports provided by the specified hub.Clients can also retrieve this information by
+		 * retrieve configuration descriptors from the hub using the Configuration Functions describe in a following section
+		 * 			STATUS usbdHubPortCountGet(USBD_CLIENT_HANDLE clientHandle,USBD_NODE_ID hubId, pUINT16 pPortCOunt)
+		 */
+				pUINT16 pPortCount;
+				status=usbdHubPortCountGet(usb_ttyusbdClientHandle,usb_ttyHubId,pPortCount);
+				if(status == OK){
+					printf("port count is :%d\n",*pPortCount);
+				}else{
+					printf("PortCount get failed!\nq");
+				}
+
+
+		/*
+		 *   usbdNodeIdGet() get the id of the node connected to a hub port,client use this function to retrieve the Node Id
+		 *   for devices attach to each of a hub port.hubId and portIndex identify the hub to which a device may be attached.
+		 *   pNodeType must point to a UINT16 variable to receive a type code.
+		 *   	STATUS usbdNodeIdGet(
+		 *   	USBD_CLIENT_HANDLE clientHandle,USBD_NODE_ID hubId,
+		 *   	UINT16 portIndex, pUINT16 pNodeType,pUSBD_NODE_ID pNodeId)
+		 */
+				pUINT16 pNodeType;
+				pUSBD_NODE_ID pNodeId;
+				status=usbdNodeIdGet(usb_ttyusbdClientHandle,usb_ttyHubId,usb_ttyHubPort,pNodeType,pNodeId);
+				if( status == OK){
+					printf("get node id successful!\n");
+					printf("node type is:%d\n",*pNodeType);
+					printf("Node Id is :%p\n",*pNodeId);
+				}else{
+					printf("get node id failed!\n");
+				}
+
+
