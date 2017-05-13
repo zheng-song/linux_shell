@@ -2,62 +2,62 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-struct BSTreeNode
+typedef struct bstreeNode
 {
 	int value;
 	struct BSTreeNode *left;
 	struct BSTreeNode *right;
-};
+} BSTreeNode;
 
-void LevelReverse (struct BSTreeNode *pRoot)
-{
-	if (pRoot == NULL){
-		return;
-	}
-	printf("%d\n",pRoot->value);
-	if (pRoot->left == NULL){
-		if (pRoot->right == NULL){
-			return;
-		}else{
-			// printf("%d\n",pRoot->right->value);
-			LevelReverse(pRoot->right);
-		}
-	}else{
-		// printf("%d\n",pRoot->left->value);
-		LevelReverse(pRoot->left);
-		if (pRoot->right != NULL){
-			printf("%d\n",pRoot->right->value);
-			LevelReverse(pRoot->right);
-		}
-	}
-}
+// void LevelReverse (struct BSTreeNode *pRoot)
+// {
+// 	if (pRoot == NULL){
+// 		return;
+// 	}
+// 	printf("%d\n",pRoot->value);
+// 	if (pRoot->left == NULL){
+// 		if (pRoot->right == NULL){
+// 			return;
+// 		}else{
+// 			// printf("%d\n",pRoot->right->value);
+// 			LevelReverse(pRoot->right);
+// 		}
+// 	}else{
+// 		// printf("%d\n",pRoot->left->value);
+// 		LevelReverse(pRoot->left);
+// 		if (pRoot->right != NULL){
+// 			printf("%d\n",pRoot->right->value);
+// 			LevelReverse(pRoot->right);
+// 		}
+// 	}
+// }
 
 //create root hub and return the doc
-struct BSTreeNode * BSTreeInit(int num)
+BSTreeNode *BSTreeInit(int num)
 {
-	struct BSTreeNode *ROOT;
-	ROOT=(struct BSTreeNode *)malloc(sizeof(struct BSTreeNode));
+	BSTreeNode *ROOT;
+	ROOT=(BSTreeNode *)malloc(sizeof(BSTreeNode));
 	ROOT->value = num;
 	ROOT->left = NULL;
 	ROOT ->right = NULL;
 	return ROOT;
 }
 
-struct BSTreeNode* BSTreeCreate(struct BSTreeNode *parent,int num,int flags)
+BSTreeNode* BSTreeCreate(BSTreeNode *parent,int num,int flags)
 {
 	if(flags == 1){
-		parent->right=(struct BSTreeNode *)malloc(sizeof(struct BSTreeNode));
+		parent->right=(BSTreeNode *)malloc(sizeof(BSTreeNode));
 		parent->right->value=num;
 		parent->right->left=NULL;
 		parent->right->right=NULL;
 		// printf("%d\n",parent->right->value);
-		return ((struct BSTreeNode *)parent->right);
+		return ((BSTreeNode *)parent->right);
 	}else{
-		parent->left=(struct BSTreeNode *)malloc(sizeof(struct BSTreeNode));
+		parent->left=(BSTreeNode *)malloc(sizeof(BSTreeNode));
 		parent->left->value=num;
 		parent->left->left=NULL;
 		parent->left->right=NULL;	
-		return ((struct BSTreeNode *)parent->left);
+		return ((BSTreeNode *)parent->left);
 	}
 
 }
@@ -65,7 +65,7 @@ struct BSTreeNode* BSTreeCreate(struct BSTreeNode *parent,int num,int flags)
 
 // int main(int argc, char const *argv[])
 // {
-// 	struct BSTreeNode *root;
+// 	BSTreeNode *root;
 // 	int num;
 // 	printf("please input the head number:");
 // 	scanf("%d",&num);
@@ -91,10 +91,47 @@ struct BSTreeNode* BSTreeCreate(struct BSTreeNode *parent,int num,int flags)
 // }
 
 
+BSTreeNode * BSTreeInit(int a[],int num)
+{
+	BSTreeNode *Root=NULL;
+	Root=(BSTreeNode *)malloc(sizeof(BSTreeNode));
+	Root->value=a[0];
+	Root->left=NULL;
+	Root->right=NULL;
+
+	BSTreeNode *parent;
+	parent=(BSTreeNode *)Root;
+	for (int i = 1; i <num ; ++i){	
+
+		if (parent->value < a[1]){
+			BSTreeNode *child_left;
+			child_left=(BSTreeNode *)malloc(BSTreeNode);
+			parent->left=(BSTreeNode *)child_left;
+			parent->left->value=a[i];
+			parent=parent->left;
+		}else{
+			BSTreeNode *child_right;
+			child_right=(BSTreeNode *)malloc(BSTreeNode);
+			parent->right=(BSTreeNode *)child_right;
+			parent->right->value=a[i];
+			parent=parent->right;
+		}
+	}
+}
+
+BSTreeNode * BSTreeNodeAdd(BSTreeNode *root,int a)
+{
+	while(root->value < a && ){
+		root=root->left;
+	}
+}
+
+
 int main(int argc, char const *argv[])
 {
 	int a[20]={0};
 	printf("%s\n", );
+
 	strcut BSTreeNode *head;
 
 	return 0;
