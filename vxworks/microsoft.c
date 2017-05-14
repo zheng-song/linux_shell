@@ -185,3 +185,98 @@ int main(int argc, char const *argv[])
 	
 // 	return 0;
 // }
+
+
+
+
+
+
+
+
+
+//==============================test.c======================================================
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+
+typedef struct bstreebode
+{
+	int value;
+	struct bstreebode *left;
+	struct bstreebode *right;
+} BSTreeNode;
+
+BSTreeNode *headerCreate(const int a)
+{
+	BSTreeNode *header = NULL;
+	header = (BSTreeNode *)malloc(sizeof(BSTreeNode));
+	memset(header, 0, sizeof(BSTreeNode));
+	header->value = a;
+	return header;
+}
+
+
+void TreePositionFind(BSTreeNode *header,const int a)
+{
+	if (header->value <= a){
+		if (header->right != NULL){
+			TreePositionFind(header->right, a);
+		}else{
+			BSTreeNode *right = NULL;
+			right = (BSTreeNode *)malloc(sizeof(BSTreeNode));
+			memset(right,0,sizeof(BSTreeNode));
+			header->right = right;
+			header->right->value = a;
+		}
+	}else{
+		if (header->left != NULL){
+			TreePositionFind(header->left,a);
+		}else{
+			BSTreeNode *left = NULL;
+			left = (BSTreeNode *)malloc(sizeof(BSTreeNode));;
+			header->left = left;
+			header->left->value = a;
+		}
+	}
+}
+
+
+void cyclePrintTree(const BSTreeNode *header)
+{
+	static int TreeLevel = 1;
+	if (header != NULL){
+		printf("TreeLevel is %d,the number is%d\n",TreeLevel,header->value);
+		TreeLevel++;
+		cyclePrintTree(header->left);
+		cyclePrintTree(header->right);
+	}else{
+		printf("at the end of tree\n");
+	}
+}
+
+
+int main(int argc, char const *argv[])
+{
+	int num =0,flags = 0;
+	BSTreeNode *header=NULL;
+	printf("Create a header node,please input the header node value\n");
+	scanf("%d",&num);
+	header= headerCreate(num);
+	printf("0 for end\t1 for continue\n");
+	scanf("%d",&flags);
+	while(flags){
+		int nodeid;
+		printf("please input node number:\t");
+		scanf("%d",&nodeid);
+		TreePositionFind(header,nodeid);
+		printf("0 for end\t1 for continue\n");
+		scanf("%d",&flags);
+	}
+
+	cyclePrintTree(header);
+
+	return 0;
+}
+//==============================test.c======================================================
