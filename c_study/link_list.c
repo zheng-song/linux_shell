@@ -1,3 +1,7 @@
+/*  question 1: through adjust pointer(not change data)to exchange two neighbouring element,use: a.singly-linked list. b.Doubly-linked list.
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
