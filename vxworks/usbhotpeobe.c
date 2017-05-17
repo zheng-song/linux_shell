@@ -1,3 +1,278 @@
+//==========================================2017.05.17 BEGIN=================================================
+#define USB_TEST_CLASS 				0x10C4		//4292
+#define USB_TEST_SUB_CLASS			0xEA60		//6000
+#define USB_TEST_DRIVE_PROTOCOL	 	0x0100 	//256
+
+LOCAL USBD_CLIENT_HANDLE 	usb_ttyusbdClientHandle=NULL;
+
+LOCAL void usbTestDevAttachCallback(USBD_NODE_ID nodeid,UINT16 attachAction,UINT16 configuration,UINT16 interface,
+	UINT16 deviceClass,UINT16 deviceSubClass,UINT16 deviceProtocol)
+{
+	printf("device detected success!\n");
+	STATUS status;
+	if(attachAction == USBD_DYNA_ATTACH){
+		printf("CallBack nodeid is:%p; configuration is:%d; interface is %d\n",nodeid,configuration,interface);	//0x103;0;0
+
+//获取USB的主机控制器的总个数，每个主机控制器都有一个root hub,获得了主机控制器的总个数之后可以获得每一个root hub的nodeid。
+		UINT16 busCount = 0;
+		status = usbdBusCountGet(usb_ttyusbdClientHandle,&busCount);
+		if(status == OK){
+			printf("get bus count OK; the total number is:%d\n",busCount);//7
+		}else{
+			printf("get bus count failed!\n");
+		}
+
+
+//利用之前获得的host controller的总个数来获得root nodeid
+		USBD_NODE_ID rootId;
+		int i=0;
+		while(i < busCount){
+			status = usbdRootNodeIdGet(usb_ttyusbdClientHandle,busCount-1,&rootId);
+			if(status == OK){
+//					printf("get rootId of root %d OK!the id is:%p\n",i,rootId);
+			}else{
+				printf("get rootId of root %d failed\n",i);
+			}
+			i++;
+		}
+
+
+//获取设备的node info
+		USBD_NODE_INFO nodeInfo;
+		UINT16 infoLen = 8;
+		status = usbdNodeInfoGet(usb_ttyusbdClientHandle,nodeid,&nodeInfo,infoLen);
+		if(status == OK){
+			printf("\nnode info get OK! nodeType:%d;  nodeSpeed:%d;\nparentHubId:%d;  parentHubport:%d;  rootId:%d;\n",nodeInfo.nodeType,nodeInfo.nodeSpeed,nodeInfo.parentHubId,nodeInfo.parentHubPort,nodeInfo.rootId);
+/*nodeType:2(表示是设备),nodeapeed:0(表示全速)，parentHubId:257;parentHubPort:0;rootId:257*/
+		}else{
+			printf("get node information failed!\n");
+		}
+
+//获得设备的nodeid NodeType's type code as:USB_NODETYPE_NONE 0 / USB_NODETYPE_HUB 1 / USB_NODETYPE_DEVICE 2
+//第2、3个参数使用上面获得的。
+		UINT16 NodeType = -1;
+		USBD_NODE_ID nodeId;
+		status = usbdNodeIdGet(usb_ttyusbdClientHandle,nodeInfo.parentHubId,nodeInfo.parentHubPort,&NodeType,&nodeId);
+		if(status == OK){
+			printf("\nnodeType:%d;  nodeId:%p\n",NodeType,nodeId);/*node type:2(表示设备);nodId:0x102*/
+		}else{
+			printf("get nodeid failed\n");
+		}
+
+//获得设备的配置
+		UINT16 devConfig;
+		status = usbdConfigurationGet(usb_ttyusbdClientHandle,nodeid,&devConfig);
+		if(status == OK){
+			printf("\nthe devConfig value is:%d\n",devConfig);
+		}else{
+			printf("get device configuration failed!\n");
+		}
+
+//获得接口的alternate setting。
+		int interfaceIndex = 0;
+		UINT16 alternateSetting;
+		status = usbdInterfaceGet(usb_ttyusbdClientHandle,nodeid,interfaceIndex,&alternateSetting);
+		if(status == OK){
+			printf("\nget interface 0 alternate setting is:%d\n",alternateSetting);
+		}else{
+			printf("get interface 0 alternate setting failed!\n");
+		}
+//将接口index设置为1无效
+//		interfaceIndex = 1;
+//		status = usbdInterfaceGet(usb_ttyusbdClientHandle,nodeid,interfaceIndex,&alternateSetting);
+//		if(status == OK){
+//			printf("get interface 1 alternate setting is:%d\n",alternateSetting);
+//		}else{
+//			printf("get interface 1 alternate setting failed!\n");
+//		}
+
+
+
+
+
+
+/*		USB_DEVICE_DESCR usb_ttyDeviceDescr;
+		UINT16 ActLen;
+		status = usbdDescriptorGet(usb_ttyusbdClientHandle,nodeid,USB_RT_STANDARD|USB_RT_DEVICE,USB_DESCR_DEVICE,0,0,USB_DEVICE_DESCR_LEN,(pUINT8)&usb_ttyDeviceDescr,&ActLen);
+		if(status == OK){
+			printf("\nDevice Descriptor:\n");
+			printf("actual length is:%d; buffer length is:%d\n;",ActLen,USB_DEVICE_DESCR_LEN);
+			printf("  bLength:%d;  bDescriptorType:%d;  bcdUSB:0x%x;  bDeviceClass:%d;\n  bDeviceSubClass:%d;  bDeviceProtocol:%d;  bMaxPacketSize:%d;  idVendor:0x%x;\n  idProduct:0x%x;  bcdDevice:0x%x;  iMancufacturer:%d;  iProduct:%d;\n  iSerial:%d;  bNumConfigurations:%d;\n",\
+					usb_ttyDeviceDescr.length,usb_ttyDeviceDescr.descriptorType,usb_ttyDeviceDescr.bcdUsb,usb_ttyDeviceDescr.deviceClass,usb_ttyDeviceDescr.deviceSubClass,usb_ttyDeviceDescr.deviceProtocol,\
+					usb_ttyDeviceDescr.maxPacketSize0,usb_ttyDeviceDescr.vendor,usb_ttyDeviceDescr.product,usb_ttyDeviceDescr.bcdDevice,usb_ttyDeviceDescr.manufacturerIndex,usb_ttyDeviceDescr.productIndex,\
+					usb_ttyDeviceDescr.serialNumberIndex,usb_ttyDeviceDescr.numConfigurations);
+//numConfigurations is 1;
+		}else{
+			printf("get descriptor failed!\n");
+		}*/
+
+
+		UINT16 ActLen;
+		pUINT8 pBfrReceiveData = (pUINT8)malloc(32*sizeof(char));
+		UINT16 bfrLen = 35;
+		pUSB_CONFIG_DESCR pusb_ttyConfigDescr = (pUSB_CONFIG_DESCR)(pBfrReceiveData);
+		pUSB_INTERFACE_DESCR pusb_ttyInterfaceDescr = (pUSB_INTERFACE_DESCR)(pBfrReceiveData+9);
+		pUSB_ENDPOINT_DESCR pusb_ttyEndpointDescr1 = (pUSB_ENDPOINT_DESCR)(pBfrReceiveData+18);
+		pUSB_ENDPOINT_DESCR pusb_ttyEndpointDescr2 = (pUSB_ENDPOINT_DESCR)(pBfrReceiveData+25);
+
+		status = usbdDescriptorGet(usb_ttyusbdClientHandle,nodeid,USB_RT_STANDARD|USB_RT_OTHER,USB_DESCR_CONFIGURATION,0,0,bfrLen,pBfrReceiveData,&ActLen);
+		if(status == OK){
+					printf("\nConfiguration:\n");
+					printf("actual length is:%d;  buffer length is:%d;\n",ActLen,bfrLen);
+					printf("  bLength:%d;  bDescriptorType:%d;  wTotalLength:%d;  bNumInterface:%d;\n  bConfigurationValue:%d;  iConfiguration:%d;  bmAttributes:0x%x;  MaxPower:%d;\n",\
+							pusb_ttyConfigDescr->length,pusb_ttyConfigDescr->descriptorType,pusb_ttyConfigDescr->totalLength,pusb_ttyConfigDescr->numInterfaces,pusb_ttyConfigDescr->configurationValue,\
+							pusb_ttyConfigDescr->configurationIndex,pusb_ttyConfigDescr->attributes,pusb_ttyConfigDescr->maxPower);
+			//打印Interface描述符
+					printf("\nInterface:\n  length:%d;  descriptorType:%d;  interfaceNumber:%d;\n  alternateSetting:%d;  numEndpoints:%d;  interfaceClass:0x%x;\n  interfaceSubClass:0x%x  interfaceProtocol:0x%x;  interfaceIndex:%d\n",\
+							pusb_ttyInterfaceDescr->length,pusb_ttyInterfaceDescr->descriptorType,pusb_ttyInterfaceDescr->interfaceNumber,pusb_ttyInterfaceDescr->alternateSetting,pusb_ttyInterfaceDescr->numEndpoints,\
+							pusb_ttyInterfaceDescr->interfaceClass,pusb_ttyInterfaceDescr->interfaceSubClass,pusb_ttyInterfaceDescr->interfaceProtocol,pusb_ttyInterfaceDescr->interfaceIndex);
+
+			//打印EndPoint 1 的描述符
+					printf("\nEndPoint:\n  length:%d;  descriptorType:%d;  endpointAddress:%d;\n  attributes:%d;  MaxPacketSize:%d;  interval:%d\n",\
+							pusb_ttyEndpointDescr1->length,pusb_ttyEndpointDescr1->descriptorType,pusb_ttyEndpointDescr1->endpointAddress,pusb_ttyEndpointDescr1->attributes,\
+							pusb_ttyEndpointDescr1->maxPacketSize,pusb_ttyEndpointDescr1->interval);
+
+			//打印EndPoint 2 的描述符
+					printf("\nEndPoint:\n  length:%d;  descriptorType:%d;  endpointAddress:%d;\n  attributes:%d;  MaxPacketSize:%d;  interval:%d\n",\
+							pusb_ttyEndpointDescr2->length,pusb_ttyEndpointDescr2->descriptorType,pusb_ttyEndpointDescr2->endpointAddress,pusb_ttyEndpointDescr2->attributes,\
+							pusb_ttyEndpointDescr2->maxPacketSize,pusb_ttyEndpointDescr2->interval);
+
+		}else{
+					printf("get configuration descriptor failed!\n");
+				}
+
+
+/*		USB_CONFIG_DESCR usb_ttyConfigDescr;s
+		status = usbdDescriptorGet(usb_ttyusbdClientHandle,nodeid,USB_RT_STANDARD|USB_RT_OTHER,USB_DESCR_CONFIGURATION,0,0,USB_CONFIG_DESCR_LEN,(pUINT8)&usb_ttyConfigDescr,&ActLen);
+		if(status == OK){
+			printf("\nconfiguration descriptor:\n");
+			printf("actual length is:%d;  buffer ength is:%d;\n",ActLen,USB_CONFIG_DESCR_LEN);
+			printf("  bLength:%d;  bDescriptorType:%d;  wTotalLength:%d;  bNumInterface:%d;\n  bConfigurationValue:%d;  iConfiguration:%d;  bmAttributes:0x%x;  MaxPower:%d;\n",\
+					usb_ttyConfigDescr.length,usb_ttyConfigDescr.descriptorType,usb_ttyConfigDescr.totalLength,usb_ttyConfigDescr.numInterfaces,usb_ttyConfigDescr.configurationValue,\
+					usb_ttyConfigDescr.configurationIndex,usb_ttyConfigDescr.attributes,usb_ttyConfigDescr.maxPower);*/
+//wTotalLength:32  bNumInterface:1  bConfigurationValue:1  iConfiguration:0;  bmAttributes:0x80;  MaxPower:50
+//wTotalLength 是为该配置所返回的数据的整个长度。其中包括为该配置所返回的所有描述符（配置、接口、端点和类型或具体的供应商）的联合长度。
+//bNumInterface是该配置所支持的接口数量 ，为1表示该配置下只支持一个接口
+//bConfigurationValue：是作为一个用于设备配置的自变量而使用的数值，以选择这一配置。
+//iConfiguration：用于描述该配置的字符串索引描述符
+//bmAttributes：配置供电和唤醒特性
+//MaxPower：电流大小
+/*		}else{
+			printf("get configuration descriptor failed!\n");
+		}*/
+
+
+
+
+//
+	pUSBD_PIPE_HANDLE pPipeHandle;
+	UINT16 endPointIndex=1;
+	UINT16 configuration=0;
+	UINT16 interface=0;
+	UINT16 maxPayload=0x40;
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,nodeid,endPointIndex,configuration,interface,USB_XFRTYPE_BULK,USB_DIR_OUT,maxPayload,0,0,pPipeHandle);
+	if(status == OK){
+		printf("create OUT pipe for endpoint 1 OK!\n");
+	}else{
+		printf("create OUT pipe for endpoint 1 failed;status is %d;\n",status);
+	}
+
+	endPointIndex = 2;
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,nodeid,endPointIndex,configuration,interface,USB_XFRTYPE_BULK,USB_DIR_IN,maxPayload,0,0,pPipeHandle);
+		if(status == OK){
+			printf("create IN pipe for endpoint 2 OK!\n");
+		}else{
+			printf("create IN pipe for endpoint 2 failed;status is %d;\n",status);
+		}
+
+	endPointIndex = 3;
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,nodeid,endPointIndex,configuration,interface,USB_XFRTYPE_BULK,USB_DIR_IN,maxPayload,0,0,pPipeHandle);
+		if(status == OK){
+			printf("create IN pipe for endpoint 3 OK!\n");
+		}else{
+			printf("create IN pipe for endpoint 3 failed;status is %d;\n",status);
+		}
+
+
+
+
+/*	STATUS usbdStatusGet(USBD_CLIENT_HANDLE clientHandle,USBD_NODE_ID nodeId,UINT16 requestType,UINT16 index,UINT16 bfrLen,pUINT8 pBfr,pUINT16 pActLen)
+ * this function retrieves the current status from the device indicated by nodeId. requestType indicates the nature of the desired status
+ * The status word is returned in pBfr. The meaning of the status varies depending on whether it was queried
+ * from the device, an interface, or an endpoint, class-specific function, etc. as described in the USB Specification.
+ */
+//	UINT16 StatusIndex = 0;  //StatusIndex的值该从哪里获得？
+//	UINT16 bfrStatusLen = 2;
+//	pUINT8 pStatusBfr;
+//	pStatusBfr = (pUINT8)malloc(sizeof(bfrStatusLen));
+//	pUINT16 pActStatusLen;
+//	status = usbdStatusGet(usb_ttyusbdClientHandle,nodeid,USB_RT_STANDARD|USB_RT_DEVICE,StatusIndex,bfrStatusLen,pStatusBfr,pActStatusLen);
+//	if(status == OK){
+//		printf("get status OK\n buffer length is :%d\nactual length is:%d\n",bfrStatusLen,*pActStatusLen);
+//		printf("the first byte of Buffer is 0x%x,the second byte of the buffer is 0x%x",*pStatusBfr,*(pStatusBfr+1));
+////buffer length is 2,the actual length is 2
+////the content of the buffer is 0
+//	}else{
+//		printf("get status failed!\n");
+//	}
+
+
+
+
+
+	}
+	if(attachAction == USBD_DYNA_REMOVE){
+		printf("device remove!");
+	}
+}
+
+
+UINT16 usbInit()/*Initialize USBD*/
+{
+	UINT16 usbdVersion;
+	char usbdMfg[USBD_NAME_LEN+1];
+	UINT16 s;
+	s=usbdInitialize();
+	printf("usbdInitialize returned %d\n",s);
+	if (s == OK){
+
+		s=usbdClientRegister("usb/tty",&usb_ttyusbdClientHandle);
+//		printf("usbdClientRegister returned %d\n",s);
+		if (s == OK){
+			printf("usb_ttyusbdClientHandle = 0x%x\n",(UINT32)usb_ttyusbdClientHandle);
+			/*Display the USBD version*/
+			if ((s=usbdVersionGet(&usbdVersion,usbdMfg)) != OK){
+				printf("usbdVersionGet() returned %d\n",s);
+			}else{
+				printf("USBD version=0x%5.4x\n",usbdVersion);
+				printf("USBD mfg='%s'\n",usbdMfg);
+				printf("usbd initilized OK!\n");
+			}
+		}
+
+
+		s=usbdDynamicAttachRegister(usb_ttyusbdClientHandle,USB_TEST_CLASS,USB_TEST_SUB_CLASS,USB_TEST_DRIVE_PROTOCOL,TRUE,usbTestDevAttachCallback);
+				if(s == OK){
+					printf("usbdDynamicAttachRegister success!\n");
+				}else{
+					printf("usbdDynamicAttachRegister failed\n");
+				}
+	}else{
+		printf("Initialized failed!\n");
+	}
+	return OK;
+}
+//==========================================2017.05.17 END=================================================
+
+
+
+
+
+
+
+
+
+
 /*
  * usbhotprobe.c
  *
@@ -249,6 +524,29 @@ UINT16 cmdUsbInit()/*Initialize USBD*/
 	}
 	return OK;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
