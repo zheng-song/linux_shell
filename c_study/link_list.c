@@ -2,21 +2,18 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#include "link_list.h"
 
-#define strLen sizeof(LINK_LIST)
 
-typedef struct linklist
-{
-	int value;
-	struct linklist *previous;
-	struct linklist *next;
-} LINK_LIST;
+static inline LINK_LIST *headCreate(void);/*create a header node with value 0 and pointer NULL*/
 
-static LINK_LIST *headCreate(void);
+static inline LINK_LIST *nodeCreate(int value);/*create a node with value 0,but previous and next pointer is NULL*/
+
+int isEmpty(const LINK_LIST *HEAD);/*return 0 means not empty,return -1 means empty*/
+
+
+
+
 static void listInsert(LINK_LIST *HEAD,int position,int value);
 static LINK_LIST * findPosition(LINK_LIST *HEAD,const int position);
 static void listPrint(LINK_LIST *HEAD,const int position);
@@ -27,17 +24,28 @@ static void sortList(LINK_LIST *HEAD)
 	
 }
 
+
+
+/*
+ * 	if position is 0.then destory the whole linklist,if position > 0.then delete the position
+ */
 static void elementDel(LINK_LIST *HEAD,int position)
 {
-//if position = 0 means delete the whole linklist
+	if (position < 0){
+		printf("you have input a wrong position\n");
+		return ;
+	}
+
 	LINK_LIST *tmp;
 
 	if (position == 0){
-		tmp=HEAD;
-		free(HEAD);
+		printf("delete the whole link\n");
+		tmp=HEAD->next;
+		free(HEAD->next);
 		while(tmp->next != NULL){
-			tmp = tmp->next;
 			free(tmp->next);
+			printf("%p\n",tmp->next);
+			tmp = tmp->next;
 		}
 	}else{
 		int flags = 0;
@@ -70,6 +78,11 @@ int main(int argc, char const *argv[])
 	listInsert(head,0,5);
 	listInsert(head,0,21);
 	listInsert(head,9,19);
+	listInsert(head,4,13);
+	listInsert(head,3,13);
+
+
+	isEmpty(head);
 
 	printf("the whole linklist is :head");
 	listPrint(head,0); //print the whole node
@@ -77,7 +90,9 @@ int main(int argc, char const *argv[])
 
 	elementDel(head,6);//delete a node that out of range
 
-	elementDel(head,3);//delete node 3,and show the list
+
+	// elementDel(head,-5);//delete node 3,and show the list
+	elementDel(head,3.3);//delete node 3,and show the list
 	printf("\ndelete node 3,the rest is: head");
 	listPrint(head,0);
 
@@ -89,11 +104,30 @@ int main(int argc, char const *argv[])
 }
 
 
-static LINK_LIST *headCreate(void)
+static inline LINK_LIST *headCreate(void)
 {
 	LINK_LIST *HEAD = (LINK_LIST *)malloc(strLen);
 	memset(HEAD,0,strLen);
 	return HEAD;
+}
+
+static inline LINK_LIST *nodeCreate(int value)
+{
+	LINK_LIST *node = (LINK_LIST *)malloc(strLen);
+	node->value = value;
+	node->previous = NULL;
+	node->next = NULL;
+	return node;
+}
+
+int isEmpty(const LINK_LIST *HEAD)
+{
+	if (HEAD->next == NULL){
+		printf("the linklist is empty\n");
+		return -1;
+	}
+	printf("the linklist is not empty\n");
+	return 0;
 }
 
 
@@ -105,33 +139,31 @@ static void listInsert(LINK_LIST *HEAD,int position,int value)
 		return;
 	}
 	if (position == 0){
-		if (HEAD->next != NULL){
-			listInsert(HEAD->next,0,value);
-		}else{
-			HEAD->next = headCreate();
-			HEAD->next->value = value;
-			HEAD->next->next = NULL;
-			HEAD->next->previous = HEAD;
+		while(HEAD->next != NULL){
+			HEAD = HEAD->next;
 		}
+		HEAD->next = nodeCreate(value);
+		HEAD->next->next = NULL;
+		HEAD->next->previous = HEAD;
+		return;
+	}
+
+	int flags = 0;
+	while(flags<position && HEAD->next != NULL){
+		flags++;
+		HEAD = HEAD->next;
+	}
+	if (HEAD->next == NULL){
+		printf("the position %d is out of range of the list\n",position);
+		return ;
 	}else{
-		static int flags = 0;
-		if (flags < position){
-			flags++;
-			if (HEAD->next != NULL)
-			{
-				listInsert(HEAD->next,position,value);
-			}else{
-				printf("the position %d is out of range of the list\n",position);
-			}
-		}else{
-			LINK_LIST *tmp;
-			tmp = HEAD->next;
-			HEAD->next = headCreate();
-			HEAD->next->value = value;
-			HEAD->next->next = tmp;
-			tmp->previous = HEAD->next;
-			HEAD->next->previous = HEAD;
-		}
+		LINK_LIST *tmp;
+		tmp = HEAD->next;
+		HEAD->next = nodeCreate(value);
+		HEAD->next->next = tmp;
+		tmp->previous = HEAD->next;
+		HEAD->next->previous = HEAD;
+		return;
 	}
 }
 
