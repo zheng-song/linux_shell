@@ -7,7 +7,11 @@ http://www.vxdev.com/docs/vx55man/vxworks/ref/usb/usbdLib.html#usbdInterfaceSet
 
 2.usbdShotDown()------这个函数在每一次成功调用usbdInitialize()之后都应该被调用，这个函数的功能是释放USBD使用的内存和其他的资源。
 
-3.UsbdClientRegister()---------这个函数用来注册一个新的client到USBD，
+3.UsbdClientRegister(pCHAR pClientName,pUSBD_CLIENT_HANDLE pClientHandle)---------这个函数用来注册一个新的client到USBD，pClientName用来指向一个长度不大于USBD_NAME_LEN的字符串
+这个字符串为该注册的应用程序的名称，USBD用它来区分不同的应用程序，必须保证其唯一性。
+
+3.2.usbdClientUnregister(pUSBD_CLIENT_HANDLE pClientHandle);--------该函数用来取消在USBD中的注册以节约资源，当一个应用程序不再使用USB总线，
+应当及时调用usbdClientUnregister()取消注册，此时USBD将会释放为其分配的资源，并删除其回调任务。不需要client来调用此函数。
 
 
 4.STATUS usbdMngmtCallbackSet(USBD_CLIENT_HANDLE clientHandle, USBD_MNGMT_CALLBACK mngmtCallback, pVOID mngmtCallbackParam)------当USB上有
@@ -202,3 +206,6 @@ typedef struct usb_irp{
     UINT16 	bfrCount;		/* Indicates count of buffers in BfrList */
     USB_BFR_LIST bfrList [1];
     } USB_IRP, *pUSB_IRP;
+
+
+
