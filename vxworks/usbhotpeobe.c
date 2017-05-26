@@ -1,3 +1,968 @@
+//===========================================2017.05.26 19:25 BEGIN===============================================
+#include <iosLib.h>
+#include "usbhotprobe.h"
+
+#define 	__DEBUG__
+#ifdef 		__DEBUG__
+	#include <D:\LambdaPRO615\target\deltaos\include\debug\utils\stdarg.h>
+	void DEBUG(const char *fmt,...)
+	{
+		va_list ap;
+//		va_list (ap,fmt);
+		vprintf(fmt,ap);
+		va_end(ap);
+	}
+#else
+	void DEBUG(const char *fmt,...){}
+#endif
+
+#define usbttyDevNamePrefix "/usbtty"
+
+STATUS status;
+USB_TTY_DEV 				*pUsbttyDev = NULL;
+LOCAL int 					usbttyDrvNum = -1; 	//驱动的数目
+LOCAL USBD_CLIENT_HANDLE 	usb_ttyusbdClientHandle = NULL;
+LOCAL LIST					usbttyList;			//系统所有的USBTTY设备
+
+STATUS getAllConfiguration(void);
+LOCAL STATUS usbttyDevCreate(char *name);
+ int usbttyDevRead(USB_TTY_DEV *pUsbttyDev,  char *buffer,  UINT32 nBytes);
+int usbttyDevWrite(USB_TTY_DEV *pUsbttyDev, char *buffer,UINT32 nBytes);
+int usbttyDevOpen(USB_TTY_DEV *pUsbttyDev,  char *name,  int flags,int mode);
+int usbttyDevClose(USB_TTY_DEV *pUsbttyDev);
+int usbttyDevIoctl(USB_TTY_DEV *pUsbttyDev,  int request,  void *arg);
+STATUS usbttyDevDelete(USB_TTY_DEV *pUsbttyDev);
+
+
+
+LOCAL void usbTestDevAttachCallback(USBD_NODE_ID nodeid,UINT16 attachAction,UINT16 configuration,UINT16 interface,UINT16 deviceClass,UINT16 deviceSubClass,UINT16 deviceProtocol)
+{
+
+	if(attachAction == USBD_DYNA_ATTACH){
+		printf("device detected success!\n");
+		DEBUG("CallBack nodeid is:%p; configuration is:%d; interface is %d\n",nodeid,configuration,interface);
+//callback nodeid is : 0x103(地址);configuration is: 0;   interface is 0;
+
+		//创建该设备的的结构体并将其初始化
+		pUsbttyDev = (USB_TTY_DEV *)calloc(1,sizeof(USB_TTY_DEV));
+		if(pUsbttyDev == NULL){
+			printf("have no enough room\n");
+			return ;
+		}
+		pUsbttyDev->usbttyNodeid = nodeid;
+
+		status = getAllConfiguration();
+		if(status == OK){
+			printf("get all configuration ok!\n");
+		}else{
+			printf("get configuration failed!\n");
+			free(pUsbttyDev);
+			return;
+		}
+
+
+/*创建UBSTTY设备*/
+		if(usbttyDevCreate(usbttyDevNamePrefix)== OK){
+			printf("create /usbtty/0 device OK!\n");
+		}else{
+			printf("create /usbtty/0 device failed\n");
+			free(pUsbttyDev);
+			return;
+		}
+//		ttyDevCreate();
+
+
+
+
+
+
+
+
+
+//	usbdInterfaceSet(usb_ttyusbdClientHandle,nodeid,0,0);
+
+
+
+
+
+	}
+
+	if(attachAction == USBD_DYNA_REMOVE){
+		if(usbttyDevDelete(pUsbttyDev)!= OK){
+			printf("delete device failed!\n");
+		}else{
+			printf("delete device success!\n");
+		}
+		printf("device remove!");
+		return ;
+	}
+
+
+}
+
+
+
+void transferCallback(pVOID pIrp)
+{
+	printf("I'm in tranferCallback now\n");
+	return ;
+}
+
+
+STATUS CreateTransfer(USBD_PIPE_HANDLE Pipe)
+{
+
+	char p[20]= "hello world.";
+	USB_IRP Irp;
+
+	Irp.bfrList[0].bfrLen = 64;
+	Irp.bfrList[0].pBfr = (pUINT8)&p;
+	Irp.bfrList[0].pid = USB_PID_OUT;
+	Irp.bfrList[0].actLen = 13;
+
+
+	Irp.flags = USB_FLAG_SHORT_OK;
+	Irp.startFrame = 0;
+	Irp.dataBlockSize = 0;
+	Irp.timeout = USB_TIMEOUT_DEFAULT;
+	Irp.userCallback = transferCallback;
+	Irp.irpLen =sizeof(USB_IRP);
+	Irp.bfrCount = 1;
+
+	status = usbdTransfer(usb_ttyusbdClientHandle,Pipe,&Irp);
+	if(status != OK){
+		printf("transfer data failed!\n");
+	}else{
+		printf("transfer data OK\n");
+	}
+
+	return status;
+
+}
+
+
+/*创建USBTTY系统设备，底层驱动xxxxDevCreate进行设备创建的时候，在每一个设备结构中都要存储该设备的驱动号(iosDrvInstall的返回值),
+ * I/O子系统可以根据设备列表中的设备结构体直接查询到该设备对应的驱动程序*/
+LOCAL STATUS usbttyDevCreate(char *name)
+{
+	char devname[256];
+	sprintf(devname,"%s/%d",name,0);
+
+	status = usbdConfigurationSet(usb_ttyusbdClientHandle,pUsbttyDev->usbttyNodeid,pUsbttyDev->configurationValue,100);
+	if(status == OK){
+		printf("set configuration ok\n");
+	}else{
+		printf("set configuration failed\n");
+	}
+
+	status = usbdInterfaceSet(usb_ttyusbdClientHandle,pUsbttyDev->usbttyNodeid,0,0);
+	if(status != OK){
+		printf("set interface failed.\n");
+		return ERROR;
+	}else{
+		printf("set interface OK.\n");
+	}
+
+	USBD_PIPE_HANDLE inPipeHandle=NULL;
+	USBD_PIPE_HANDLE outPipeHandle=NULL;
+	UINT16 endPointIndex=1;
+
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,pUsbttyDev->usbttyNodeid,endPointIndex,pUsbttyDev->configuration,pUsbttyDev->interface,USB_XFRTYPE_BULK,USB_DIR_IN,pUsbttyDev->epMaxPacketSize,0,0,&inPipeHandle);
+	if(status == OK){
+		printf("create IN pipe for endpoint 1 OK!\n");
+	}else{
+		printf("create IN pipe for endpoint 1 failed;status is %d;\n",status);
+	}
+	pUsbttyDev->inPipeHandle = inPipeHandle;
+
+	endPointIndex = 2;
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,pUsbttyDev->usbttyNodeid,endPointIndex,pUsbttyDev->configuration,pUsbttyDev->interface,USB_XFRTYPE_BULK,USB_DIR_OUT,pUsbttyDev->epMaxPacketSize,0,0,&outPipeHandle);
+		if(status == OK){
+			printf("create OUT pipe for endpoint 2 OK!\n");
+		}else{
+			printf("create OUT pipe for endpoint 2 failed;status is %d;\n",status);
+		}
+	pUsbttyDev->outPipeHandle= outPipeHandle;
+
+
+	/*将设备添加到系统的设备列表当中*/
+	if((status = iosDevAdd (&pUsbttyDev->usbttyDev,devname,usbttyDrvNum)) != OK){
+		free(pUsbttyDev);
+		printf("Unable to create ttyusb device.");
+		return status;
+	}
+	return OK;
+}
+
+
+
+
+/*初始化USBTTY驱动*/
+STATUS usrUsbttyDevInit(void)
+{
+//	int index = 0;
+
+/*检查驱动是否已经安装,如果已经安装就正常退出*/
+	if(usbttyDrvNum > 0){
+		printf("USBTTY already initialized.\n");
+		return OK;
+	}
+
+/*创建互斥的信号量*/
+	SEM_ID usbttyMutex = semMCreate(SEM_Q_PRIORITY | SEM_DELETE_SAFE | SEM_INVERSION_SAFE);
+	SEM_ID usbttyListMutex = semMCreate(SEM_Q_PRIORITY | SEM_DELETE_SAFE | SEM_INVERSION_SAFE);
+	if(usbttyMutex == NULL || usbttyListMutex == NULL){
+		printf("Resource Allocation Failure!\n");
+//		goto ERROR_HANDLE;
+	}
+/*初始化链表*/
+	lstInit(&usbttyList);
+
+
+/*安装合适的程序到驱动列表,iosDrvInstall向I/O子系统注册驱动本身，此时这个驱动被保存在系统的驱动表当中，
+ * 等待设备与其进行衔接，衔接的工作由xxxxDevCreate()函数来完成，在iosDevCreate()函数中调用iosDevAdd()
+ * 函数添加设备时，需要指定设备对应的驱动程序的驱动号，就是xxxxDrvNum中存储的驱动号。从而将将设备和底层驱动进行衔接。
+ * 当用户对该设备进行操作的时候，可以调用此处定义的底层驱动函数*/
+	usbttyDrvNum = iosDrvInstall((FUNCPTR)NULL,(FUNCPTR)usbttyDevDelete, (FUNCPTR) usbttyDevOpen,
+			(FUNCPTR) usbttyDevClose,(FUNCPTR) usbttyDevRead,(FUNCPTR) usbttyDevWrite,(FUNCPTR) usbttyDevIoctl);
+
+
+/*检查是否为驱动安装空间*/
+	if(usbttyDrvNum <= 0){
+		errnoSet(S_ioLib_NO_DRIVER);
+		printf("There is no more room in the driver table\n");
+		return ERROR;
+//		goto ERROR_HANDLER;
+	}
+
+//	s=usbdInitialize();
+//	printf("usbdInitialize returned %d\n",s);
+
+	status =usbdClientRegister("/usbtty",&usb_ttyusbdClientHandle);
+	if (status == OK){
+		printf("usb_ttyusbdClientHandle = 0x%x\n",(UINT32)usb_ttyusbdClientHandle);
+	}else{
+		printf("client register failed!\n");
+		return  ERROR;
+	}
+
+	status =usbdDynamicAttachRegister(usb_ttyusbdClientHandle,USB_TEST_CLASS,USB_TEST_SUB_CLASS,USB_TEST_DRIVE_PROTOCOL,TRUE,&usbTestDevAttachCallback);
+			if(status == OK){
+				printf("usbdDynamicAttachRegister success!\n");
+			}else{
+				printf("usbdDynamicAttachRegister failed\n");
+				return ERROR;
+			}
+	return OK;
+}
+
+
+
+/*写USBTTY设备*/
+int usbttyDevWrite(USB_TTY_DEV *pUsbttyDev, char *buffer,UINT32 nBytes)
+{
+	printf("here is in usbttyDevWrite function\n");
+	int nByteWrited = 2;
+	status = CreateTransfer(pUsbttyDev->outPipeHandle);
+	//TODO
+	return nByteWrited;
+}
+
+/*打开USBTTY串行设备，在此处对设备进行设置*/
+int usbttyDevOpen(USB_TTY_DEV *pUsbttyDev, char *name, int flags,int mode)
+{
+	printf("OK here im in usbttyDevOpen!\n");
+//	status = usbdConfigurationSet(usb_ttyusbdClientHandle,pUsbttyDev->usbttyNodeid,1,);
+
+
+//	pUsbttyDev->numOpened++;
+//	sioIoctl(&pUsbttyDev->pSioChan,SIO_OPEN,NULL);
+//	return ((int)pUsbttyDev);
+	return OK;
+}
+
+
+/*关闭USBTTY串行设备*/
+int usbttyDevClose(USB_TTY_DEV *pUsbttyDev)
+{
+	if(!(pUsbttyDev->numOpened)){
+		sioIoctl(&pUsbttyDev->pSioChan,SIO_HUP,NULL);
+	}
+
+	return ((int)pUsbttyDev);
+}
+
+
+int usbttyDevIoctl(USB_TTY_DEV *pUsbttyDev,/*读取的设备*/
+		int request/*请求编码*/,
+		void *arg/*参数*/)
+{
+	int status = OK;
+	switch(request){
+	case FIOSELECT:
+		//TODO
+		break;
+
+	case FIOUNSELECT:
+		//TODO
+		break;
+
+	case FIONREAD:
+		//TODO
+		break;
+
+	default:	/*	调用IO控制函数*/
+		status = (sioIoctl(&pUsbttyDev->pSioChan,request,arg));
+	}
+	return status;
+}
+
+
+
+/*读取数据*/
+int usbttyDevRead(USB_TTY_DEV *pUsbttyDev,char *buffer, UINT32 nBytes)
+{
+	int 		arg = 0;
+//	UINT32  	bytesAvailable	=0; 	//存储队列的所有字节
+	UINT32 		bytesToBeRead  	=0;		//读取字节数
+//	UINT32 		i = 0;					//计数值
+
+	/*如果字节无效，返回ERROR*/
+	if(nBytes == 0){
+		return ERROR;
+	}
+
+	/*设置缓冲区*/
+	memset(buffer,0,nBytes);
+	sioIoctl(&pUsbttyDev->pSioChan,SIO_MODE_GET,&arg);
+
+	if(arg == SIO_MODE_POLL){
+//		return pUsbttyDev->pSioChan->pDrvFuncs->pollInput(&pUsbttyDev->pSioChan,buffer);
+	}else if(arg == SIO_MODE_INT){
+		//TODO
+
+		return ERROR;
+	}else{
+		logMsg("Unsupported Mode\n",0,0,0,0,0,0);
+		return ERROR;
+	}
+	/*返回读取的字节数*/
+	return bytesToBeRead;
+}
+
+
+
+
+
+/*为USBTTY删除道系统设备*/
+STATUS usbttyDevDelete(USB_TTY_DEV *pUsbttyDev)
+{
+	if(usbttyDrvNum < 0){
+		errnoSet(S_ioLib_NO_DRIVER);
+		return ERROR;
+	}
+
+
+	/*从I/O系统删除设备*/
+	iosDevDelete(&pUsbttyDev->usbttyDev);
+
+	/*从列表删除*/
+	//TODO
+
+	/*设备释放内存*/
+//	free(pUsbttyDev->pUsbttyNode);
+	free(pUsbttyDev);
+	return OK;
+}
+
+
+STATUS getAllConfiguration(void)
+{
+	UINT16 ActLen;
+	pUINT8 pBfrReceiveData = (pUINT8)malloc(32*sizeof(char));
+	UINT16 bfrLen = 38;
+	pUSB_CONFIG_DESCR pusb_ttyConfigDescr = (pUSB_CONFIG_DESCR)(pBfrReceiveData);
+	pUSB_INTERFACE_DESCR pusb_ttyInterfaceDescr = (pUSB_INTERFACE_DESCR)(pBfrReceiveData+9);
+	pUSB_ENDPOINT_DESCR pusb_ttyEndpointDescr1 = (pUSB_ENDPOINT_DESCR)(pBfrReceiveData+18);
+	pUSB_ENDPOINT_DESCR pusb_ttyEndpointDescr2 = (pUSB_ENDPOINT_DESCR)(pBfrReceiveData+25);
+
+	status = usbdDescriptorGet(usb_ttyusbdClientHandle,pUsbttyDev->usbttyNodeid,USB_RT_STANDARD|USB_RT_OTHER,USB_DESCR_CONFIGURATION,0,0,bfrLen,pBfrReceiveData,&ActLen);
+	if(status == OK){
+				printf("\nConfiguration:\n");
+				printf("actual length is:%d;  buffer length is:%d;\n",ActLen,bfrLen);
+				printf("  bLength:%d;  bDescriptorType:%d;  wTotalLength:%d;  bNumInterface:%d;\n  bConfigurationValue:%d;  iConfiguration:%d;  bmAttributes:0x%x;  MaxPower:%d;\n",\
+						pusb_ttyConfigDescr->length,pusb_ttyConfigDescr->descriptorType,pusb_ttyConfigDescr->totalLength,pusb_ttyConfigDescr->numInterfaces,pusb_ttyConfigDescr->configurationValue,\
+						pusb_ttyConfigDescr->configurationIndex,pusb_ttyConfigDescr->attributes,pusb_ttyConfigDescr->maxPower);
+// actual length:32(返回的数据的总长度为32字节);     buffer length is:38(提供的空间为38个字节);   bLength:9(配置描述符所占的长度为9 );  DescriptorType:2(表示该描述符指向的是一个设备）;
+// wTotalLength:32(表示该配置+接口+端点描述符的总长度)   bNumInterface:1(该配置下接口数为1个)；          bConfigurationValue:1(该配置的值为1);   iConfiguration：0(用于描述该配置的字符串描述符的索引)
+// bmAttributes:0x80(D7为1表示总线供电，D6为0表示不是自供电，D5为0表示不支持远程唤醒，D4-D0保留);    MaxPower:50(电流大小，以2mA为单位，50表示100mA)
+				pUsbttyDev->configuration      = 0;
+				pUsbttyDev->configurationValue = pusb_ttyConfigDescr->configurationValue;
+				pUsbttyDev->maxPower		   = pusb_ttyConfigDescr->maxPower;
+
+
+		//打印Interface描述符
+			printf("\nInterface:\n  length:%d;  descriptorType:%d;  interfaceNumber:%d;\n  alternateSetting:%d;  numEndpoints:%d;  interfaceClass:0x%x;\n  interfaceSubClass:0x%x  interfaceProtocol:0x%x;  interfaceIndex:%d\n",\
+						pusb_ttyInterfaceDescr->length,pusb_ttyInterfaceDescr->descriptorType,pusb_ttyInterfaceDescr->interfaceNumber,pusb_ttyInterfaceDescr->alternateSetting,pusb_ttyInterfaceDescr->numEndpoints,\
+						pusb_ttyInterfaceDescr->interfaceClass,pusb_ttyInterfaceDescr->interfaceSubClass,pusb_ttyInterfaceDescr->interfaceProtocol,pusb_ttyInterfaceDescr->interfaceIndex);
+// Length:9(接口描述符的总长度为9);  descriptorType:4(表示指向的是接口)；   interfaceNumber：0(表示接口的数目，非0值指出在该配置所同时支持的接口阵列中的索引)；  alternateSetting：0(用于为上一个域所标识出的接口选择可供替换的设置)
+// numEndpoint:2(该接口所支持的端点数，不包括0端点)  interfaceClass:0xFF(若该位为0xFF，接口类型就由供应商所特定。其他所有的数值就保留而由USB进行分配)。  interfaceSubClass:0x0(表示数值由USB进行分配)；
+// interfaceProtocol:0x0(表示该接口上没有使用一个特定类型的协议)。  interfaceIndex:2(该值用于描述接口的字符串描述符的索引。)
+				pUsbttyDev->altSetting = pusb_ttyInterfaceDescr->alternateSetting;
+				pUsbttyDev->interface  = 0;
+
+
+		//打印EndPoint 1 的描述符
+				printf("\nEndPoint:\n  length:%d;  descriptorType:%d;  endpointAddress:0x%x;\n  attributes:0x%x;  MaxPacketSize:%d;  interval:%d\n",\
+						pusb_ttyEndpointDescr1->length,pusb_ttyEndpointDescr1->descriptorType,pusb_ttyEndpointDescr1->endpointAddress,pusb_ttyEndpointDescr1->attributes,\
+						pusb_ttyEndpointDescr1->maxPacketSize,pusb_ttyEndpointDescr1->interval);
+//length:7;  descriptorType:5  endpointAddress:0x81(bit7: 0(OUT),1(IN) bit4..6:保留，应复位为0，bit0..3:端点号)；  Attributes:0x2(bit0..1:传输类型0x10表示批量传输);  MaxPacketSize:64(最大分组尺寸)；  Interval:0(用于轮询，对于批量和控制传输应为0)
+//端点1为输入端点
+				pUsbttyDev->inEndpointAddress = pusb_ttyEndpointDescr1->endpointAddress ;
+				pUsbttyDev->epMaxPacketSize   = pusb_ttyEndpointDescr1->maxPacketSize;
+
+
+
+		//打印EndPoint 2 的描述符
+				printf("\nEndPoint:\n  length:%d;  descriptorType:%d;  endpointAddress:0x%x;\n  attributes:0x%x;  MaxPacketSize:%d;  interval:%d\n",\
+						pusb_ttyEndpointDescr2->length,pusb_ttyEndpointDescr2->descriptorType,pusb_ttyEndpointDescr2->endpointAddress,pusb_ttyEndpointDescr2->attributes,\
+						pusb_ttyEndpointDescr2->maxPacketSize,pusb_ttyEndpointDescr2->interval);
+//length:7;  descriptorType:5  endpointAddress:0x1(bit7: 0(OUT),1(IN) bit4..6:保留，应复位为0，bit0..3:端点号)；  Attributes:0x2(bit0..1:传输类型0x10表示批量传输);  MaxPacketSize:64(最大分组尺寸)；  Interval:0(用于轮询，对于批量和控制传输应为0)
+//端点2为输出端点
+
+				pUsbttyDev->outEndpointAddress = pusb_ttyEndpointDescr2->endpointAddress;
+
+				free(pBfrReceiveData);
+				pBfrReceiveData = NULL;
+	}else{
+				free(pBfrReceiveData);
+				pBfrReceiveData = NULL;
+			}
+
+	return status;
+}
+
+
+//===========================================2017.05.26 19:25 END===============================================
+
+
+
+
+//===========================================2017.05.26 BEGIN===============================================
+/*
+ * usbhotprobe.c
+ *
+ *  Created on: 2017-5-5
+ *      Author: sfh
+ */
+
+/*
+#include <stdio.h>
+#include <stdlib.h>
+#include <errnoLib.h>
+#include <vxWorksCommon.h>
+#include <String.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\usbdLib.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\pciConstants.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\usbPciLib.h>
+*/
+
+#include <iosLib.h>
+#include "usbhotprobe.h"
+
+#define 	__DEBUG__
+#ifdef 		__DEBUG__
+	#include <D:\LambdaPRO615\target\deltaos\include\debug\utils\stdarg.h>
+	void DEBUG(const char *fmt,...)
+	{
+		va_list ap;
+//		va_list (ap,fmt);
+		vprintf(fmt,ap);
+		va_end(ap);
+	}
+#else
+	void DEBUG(const char *fmt,...){}
+#endif
+
+#define usbttyDevNamePrefix "/usbtty"
+#define DEBUG_DESCRIPTOR
+#define DEBUG_PIPE
+#define ERROR_HANDLER
+
+STATUS status;
+USB_TTY_DEV *pUsbttyDev = NULL;
+LOCAL int 					usbttyDrvNum = -1; 	//驱动的数目
+LOCAL USBD_CLIENT_HANDLE 	usb_ttyusbdClientHandle = NULL;
+LOCAL LIST					usbttyList;			//系统所有的USBTTY设备
+
+void getAllConfiguration(void);
+LOCAL int usbttyDevRead(USB_TTY_DEV *pUsbttyDev,  char *buffer,  UINT32 nBytes);
+LOCAL int usbttyDevWrite(USB_TTY_DEV *pUsbttyDev, char *buffer,UINT32 nBytes);
+LOCAL int usbttyDevOpen(USB_TTY_DEV *pUsbttyDev,  char *name,  int flags,int mode);
+LOCAL int usbttyDevClose(USB_TTY_DEV *pUsbttyDev);
+LOCAL int usbttyDevIoctl(USB_TTY_DEV *pUsbttyDev,  int request,  void *arg);
+LOCAL STATUS usbttyDevDelete(USB_TTY_DEV *pUsbttyDev);
+LOCAL STATUS usbttyDevCreate(char *name,USBD_NODE_ID nodeid,UINT16 configuration,UINT16 interface,UINT16 deviceClass,UINT16 deviceSubClass,UINT16 deviceProtocol);
+
+
+LOCAL void usbTestDevAttachCallback(USBD_NODE_ID nodeid,UINT16 attachAction,UINT16 configuration,UINT16 interface,
+	UINT16 deviceClass,UINT16 deviceSubClass,UINT16 deviceProtocol)
+{
+
+	if(attachAction == USBD_DYNA_ATTACH){
+		printf("device detected success!\n");
+		DEBUG("CallBack nodeid is:%p; configuration is:%d; interface is %d\n",nodeid,configuration,interface);
+//callback nodeid is : 0x103(地址);configuration is: 0;   interface is 0;
+
+/*创建UBSTTY设备*/
+		if(usbttyDevCreate(usbttyDevNamePrefix,nodeid,configuration,interface,deviceClass,deviceSubClass,deviceProtocol)== OK){
+			printf("create /USBTTY/0 device OK!\n");
+		}else{
+			printf("create /USBTTY/0 device failed\n");
+		}
+//		ttyDevCreate();
+
+
+
+#ifdef DEBUG_DESCRIPTOR
+		getAllConfiguration()
+#endif
+
+
+
+//	usbdInterfaceSet(usb_ttyusbdClientHandle,nodeid,0,0);
+
+
+
+
+
+	}
+
+	if(attachAction == USBD_DYNA_REMOVE){
+		if(usbttyDevDelete(pUsbttyDev)!= OK){
+			printf("delete device failed!\n");
+		}else{
+			printf("delete device success!\n");
+		}
+		printf("device remove!");
+		return ;
+	}
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/*初始化USBTTY驱动*/
+STATUS usrUsbttyDevInit(void)
+{
+	STATUS s = ERROR;
+//	int index = 0;
+
+/*检查驱动是否已经安装,如果已经安装就正常退出*/
+	if(usbttyDrvNum > 0){
+		printf("USBTTY already initialized.\n");
+		return OK;
+	}
+
+/*创建互斥的信号量*/
+	SEM_ID usbttyMutex = semMCreate(SEM_Q_PRIORITY | SEM_DELETE_SAFE | SEM_INVERSION_SAFE);
+	SEM_ID usbttyListMutex = semMCreate(SEM_Q_PRIORITY | SEM_DELETE_SAFE | SEM_INVERSION_SAFE);
+	if(usbttyMutex == NULL || usbttyListMutex == NULL){
+		printf("Resource Allocation Failure!\n");
+//		goto ERROR_HANDLE;
+	}
+/*初始化链表*/
+	lstInit(&usbttyList);
+
+
+/*安装合适的程序到驱动列表,iosDrvInstall向I/O子系统注册驱动本身，此时这个驱动被保存在系统的驱动表当中，
+ * 等待设备与其进行衔接，衔接的工作由xxxxDevCreate()函数来完成，在iosDevCreate()函数中调用iosDevAdd()
+ * 函数添加设备时，需要指定设备对应的驱动程序的驱动号，就是xxxxDrvNum中存储的驱动号。从而将将设备和底层驱动进行衔接。
+ * 当用户对该设备进行操作的时候，可以调用此处定义的底层驱动函数*/
+	usbttyDrvNum = iosDrvInstall((FUNCPTR)NULL,(FUNCPTR)usbttyDevDelete, (FUNCPTR) usbttyDevOpen,
+			(FUNCPTR) usbttyDevClose,(FUNCPTR) usbttyDevRead,(FUNCPTR) usbttyDevWrite,(FUNCPTR) usbttyDevIoctl);
+
+
+/*检查是否为驱动安装空间*/
+	if(usbttyDrvNum <= 0){
+		errnoSet(S_ioLib_NO_DRIVER);
+		printf("There is no more room in the driver table\n");
+		return ERROR;
+//		goto ERROR_HANDLER;
+	}
+
+//	s=usbdInitialize();
+//	printf("usbdInitialize returned %d\n",s);
+
+	s=usbdClientRegister("/usbtty",&usb_ttyusbdClientHandle);
+	if (s == OK){
+		printf("usb_ttyusbdClientHandle = 0x%x\n",(UINT32)usb_ttyusbdClientHandle);
+	}else{
+		printf("client register failed!\n");
+		return  ERROR;
+	}
+
+	s=usbdDynamicAttachRegister(usb_ttyusbdClientHandle,USB_TEST_CLASS,USB_TEST_SUB_CLASS,USB_TEST_DRIVE_PROTOCOL,TRUE,&usbTestDevAttachCallback);
+			if(s == OK){
+				printf("usbdDynamicAttachRegister success!\n");
+			}else{
+				printf("usbdDynamicAttachRegister failed\n");
+			}
+//	}else{
+//		printf("Initialized failed!\n");
+//	}
+	return OK;
+
+/*ERROR_HANDLER:
+	if(usbttyDrvNum){
+		iosDrvRemove(usbttyDrvNum,1);
+		usbttyDrvNum = 0;
+	}
+
+	if(usbttyMutex != NULL){
+		semDelete(usbttyMutex);
+	}
+
+	if(usbttyListMutex != NULL)
+		semDelete(usbttyListMutex);
+
+	usbttyMutex  	= NULL;
+	usbttyListMutex = NULL;
+	return ERROR;*/
+
+}
+
+void transferCallback(pVOID pIrp)
+{
+	printf("I'm in tranferCallback now\n");
+	return ;
+}
+
+
+STATUS CreateTransfer(USBD_PIPE_HANDLE Pipe)
+{
+
+	char p[20]= "hello world.";
+	STATUS s;
+	USB_IRP Irp;
+
+	Irp.bfrList[0].bfrLen = 64;
+	Irp.bfrList[0].pBfr = (pUINT8)&p;
+	Irp.bfrList[0].pid = USB_PID_OUT;
+	Irp.bfrList[0].actLen = 13;
+
+
+	Irp.flags = USB_FLAG_SHORT_OK;
+	Irp.startFrame = 0;
+	Irp.dataBlockSize = 0;
+	Irp.timeout = USB_TIMEOUT_DEFAULT;
+	Irp.userCallback = transferCallback;
+	Irp.irpLen =sizeof(USB_IRP);
+	Irp.bfrCount = 1;
+
+	s = usbdTransfer(usb_ttyusbdClientHandle,Pipe,&Irp);
+	if(s != OK){
+		printf("transfer data failed!\n");
+	}else{
+		printf("transfer data OK\n");
+	}
+
+	return s;
+
+}
+
+
+
+
+
+
+
+/*创建USBTTY系统设备，底层驱动xxxxDevCreate进行设备创建的时候，在每一个设备结构中都要存储该设备的驱动号(iosDrvInstall的返回值),
+ * I/O子系统可以根据设备列表中的设备结构体直接查询到该设备对应的驱动程序*/
+LOCAL STATUS usbttyDevCreate(char *name,USBD_NODE_ID nodeid,UINT16 configuration,UINT16 interface,UINT16 deviceClass,UINT16 deviceSubClass,UINT16 deviceProtocol)
+//LOCAL STATUS usbttyDevCreate(char *name	/*,SIO_CHAN *pSioChan*/,)
+{
+	STATUS s = ERROR;
+	char devname[256];
+	sprintf(devname,"%s/%d",usbttyDevNamePrefix,0);
+//	USB_TTY_DEV usbttyDev; 是不是不能这样直接声明为一个变量，因为这个结构是要在整个程序的运行过程中保存的，
+//而定义为变量的话出了这个函数这个结构就被销毁了。
+	pUsbttyDev = (USB_TTY_DEV *)malloc(sizeof(USB_TTY_DEV));//指向USB设备
+	if(pUsbttyDev == NULL){
+		return ERROR;
+	}
+	memset(pUsbttyDev,0,sizeof(USB_TTY_DEV));
+//申请了这个结构体之后就对其进行初始化，初始化完成以后再使用isoDevAdd()将其注册
+	//TODO  初始化此结构体。
+
+
+	s = usbdInterfaceSet(usb_ttyusbdClientHandle,nodeid,0,0);
+
+#ifdef DEBUG_PIPE
+	USBD_PIPE_HANDLE PipeHandle1=NULL;
+	USBD_PIPE_HANDLE PipeHandle2=NULL;
+//	USBD_PIPE_HANDLE PipeHandle3=NULL;
+	UINT16 endPointIndex=1;
+//	UINT16 configuration=0;
+//	UINT16 interface=0;
+	UINT16 maxPayload=0x40;
+
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,nodeid,endPointIndex,configuration,interface,USB_XFRTYPE_BULK,USB_DIR_IN,maxPayload,0,0,&PipeHandle1);
+	if(status == OK){
+		printf("create IN pipe for endpoint 1 OK!\n");
+	}else{
+		printf("create IN pipe for endpoint 1 failed;status is %d;\n",status);
+	}
+
+	endPointIndex = 2;
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,nodeid,endPointIndex,configuration,interface,USB_XFRTYPE_BULK,USB_DIR_OUT,maxPayload,0,0,&PipeHandle2);
+		if(status == OK){
+			printf("create OUT pipe for endpoint 2 OK!\n");
+		}else{
+			printf("create OUT pipe for endpoint 2 failed;status is %d;\n",status);
+		}
+
+	/*endPointIndex = 3;
+	status = usbdPipeCreate(usb_ttyusbdClientHandle,nodeid,endPointIndex,configuration,interface,USB_XFRTYPE_BULK,USB_DIR_IN,maxPayload,0,0,&PipeHandle3);
+		if(status == OK){
+			printf("create IN pipe for endpoint 3 OK!\n");
+		}else{
+			printf("create IN pipe for endpoint 3 failed;status is %d;\n",status);
+		}*/
+#endif
+
+
+
+	pUsbttyDev->altSetting = 0;
+	pUsbttyDev->configuration = configuration;
+	pUsbttyDev->inEndpointAddress = 0x81;
+	pUsbttyDev->inPipeHandle = PipeHandle1;
+	pUsbttyDev->outPipeHandle = PipeHandle2;
+	pUsbttyDev->interface = interface;
+	pUsbttyDev->outEndpointAddress =0x1 ;
+	pUsbttyDev->usbttyNodeid = nodeid;
+
+	/*为节点分配内存并输入数据*/
+/*	USB_TTY_NODE *pUsbttyNode = (USB_TTY_NODE *)calloc(1,sizeof(USB_TTY_NODE));//指向设备的节点
+	if(pUsbttyNode == NULL){
+		printf("calloc returned NULL - out of memory\n");
+		return ERROR;
+	}
+	pUsbttyNode->pUsbttyDev = pUsbttyDev;
+	pUsbttyDev->pUsbttyNode = pUsbttyNode;*/
+
+
+
+
+	/*将设备添加到系统的设备列表当中*/
+	if((s = iosDevAdd (&pUsbttyDev->usbttyDev,devname,usbttyDrvNum)) != OK){
+		free(pUsbttyDev);
+//		free(pUsbttyNode);
+		printf("Unable to create ttyusb device.");
+		return s;
+	}
+	return OK;
+}
+
+
+
+
+/*打开USBTTY串行设备，在此处对设备进行设置*/
+LOCAL int usbttyDevOpen(USB_TTY_DEV *pUsbttyDev, char *name, int flags,int mode)
+{
+	printf("OK here im in usbttyDevOpen!\n");
+//	status = usbdConfigurationSet(usb_ttyusbdClientHandle,pUsbttyDev->usbttyNodeid,1,);
+
+
+//	pUsbttyDev->numOpened++;
+//	sioIoctl(&pUsbttyDev->pSioChan,SIO_OPEN,NULL);
+//	return ((int)pUsbttyDev);
+	return OK;
+}
+
+
+/*关闭USBTTY串行设备*/
+LOCAL int usbttyDevClose(USB_TTY_DEV *pUsbttyDev)
+{
+	if(!(pUsbttyDev->numOpened)){
+		sioIoctl(&pUsbttyDev->pSioChan,SIO_HUP,NULL);
+	}
+
+	return ((int)pUsbttyDev);
+}
+
+
+LOCAL int usbttyDevIoctl(USB_TTY_DEV *pUsbttyDev,/*读取的设备*/
+		int request/*请求编码*/,
+		void *arg/*参数*/)
+{
+	int status = OK;
+	switch(request){
+	case FIOSELECT:
+		//TODO
+		break;
+
+	case FIOUNSELECT:
+		//TODO
+		break;
+
+	case FIONREAD:
+		//TODO
+		break;
+
+	default:	/*	调用IO控制函数*/
+		status = (sioIoctl(&pUsbttyDev->pSioChan,request,arg));
+	}
+	return status;
+}
+
+
+
+/*读取数据*/
+LOCAL int usbttyDevRead(USB_TTY_DEV *pUsbttyDev,char *buffer, UINT32 nBytes)
+{
+	int 		arg = 0;
+//	UINT32  	bytesAvailable	=0; 	//存储队列的所有字节
+	UINT32 		bytesToBeRead  	=0;		//读取字节数
+//	UINT32 		i = 0;					//计数值
+
+	/*如果字节无效，返回ERROR*/
+	if(nBytes == 0){
+		return ERROR;
+	}
+
+	/*设置缓冲区*/
+	memset(buffer,0,nBytes);
+	sioIoctl(&pUsbttyDev->pSioChan,SIO_MODE_GET,&arg);
+
+	if(arg == SIO_MODE_POLL){
+//		return pUsbttyDev->pSioChan->pDrvFuncs->pollInput(&pUsbttyDev->pSioChan,buffer);
+	}else if(arg == SIO_MODE_INT){
+		//TODO
+
+		return ERROR;
+	}else{
+		logMsg("Unsupported Mode\n",0,0,0,0,0,0);
+		return ERROR;
+	}
+	/*返回读取的字节数*/
+	return bytesToBeRead;
+}
+
+
+/*写USBTTY设备*/
+LOCAL int usbttyDevWrite(USB_TTY_DEV *pUsbttyDev, char *buffer,UINT32 nBytes)
+{
+	printf("here is in usbttyDevWrite function\n");
+	int nByteWrited = 2;
+	STATUS s;
+	s = CreateTransfer(pUsbttyDev->outPipeHandle);
+	//TODO
+	return nByteWrited;
+}
+
+
+/*为USBTTY删除道系统设备*/
+LOCAL STATUS usbttyDevDelete(USB_TTY_DEV *pUsbttyDev)
+{
+	if(usbttyDrvNum < 0){
+		errnoSet(S_ioLib_NO_DRIVER);
+		return ERROR;
+	}
+
+
+	/*从I/O系统删除设备*/
+	iosDevDelete(&pUsbttyDev->usbttyDev);
+
+	/*从列表删除*/
+	//TODO
+
+	/*设备释放内存*/
+//	free(pUsbttyDev->pUsbttyNode);
+	free(pUsbttyDev);
+	return OK;
+}
+
+
+
+
+void getAllConfiguration(void)
+{
+	UINT16 ActLen;
+	pUINT8 pBfrReceiveData = (pUINT8)malloc(32*sizeof(char));
+	UINT16 bfrLen = 38;
+	pUSB_CONFIG_DESCR pusb_ttyConfigDescr = (pUSB_CONFIG_DESCR)(pBfrReceiveData);
+	pUSB_INTERFACE_DESCR pusb_ttyInterfaceDescr = (pUSB_INTERFACE_DESCR)(pBfrReceiveData+9);
+	pUSB_ENDPOINT_DESCR pusb_ttyEndpointDescr1 = (pUSB_ENDPOINT_DESCR)(pBfrReceiveData+18);
+	pUSB_ENDPOINT_DESCR pusb_ttyEndpointDescr2 = (pUSB_ENDPOINT_DESCR)(pBfrReceiveData+25);
+
+	status = usbdDescriptorGet(usb_ttyusbdClientHandle,nodeid,USB_RT_STANDARD|USB_RT_OTHER,USB_DESCR_CONFIGURATION,0,0,bfrLen,pBfrReceiveData,&ActLen);
+	if(status == OK){
+				printf("\nConfiguration:\n");
+				printf("actual length is:%d;  buffer length is:%d;\n",ActLen,bfrLen);
+				printf("  bLength:%d;  bDescriptorType:%d;  wTotalLength:%d;  bNumInterface:%d;\n  bConfigurationValue:%d;  iConfiguration:%d;  bmAttributes:0x%x;  MaxPower:%d;\n",\
+						pusb_ttyConfigDescr->length,pusb_ttyConfigDescr->descriptorType,pusb_ttyConfigDescr->totalLength,pusb_ttyConfigDescr->numInterfaces,pusb_ttyConfigDescr->configurationValue,\
+						pusb_ttyConfigDescr->configurationIndex,pusb_ttyConfigDescr->attributes,pusb_ttyConfigDescr->maxPower);
+// actual length:32(返回的数据的总长度为32字节);     buffer length is:38(提供的空间为38个字节);   bLength:9(配置描述符所占的长度为9 );  DescriptorType:2(表示该描述符指向的是一个设备）;
+// wTotalLength:32(表示该配置+接口+端点描述符的总长度)   bNumInterface:1(该配置下接口数为1个)；          bConfigurationValue:1(该配置的值为1);   iConfiguration：0(用于描述该配置的字符串描述符的索引)
+// bmAttributes:0x80(D7为1表示总线供电，D6为0表示不是自供电，D5为0表示不支持远程唤醒，D4-D0保留);    MaxPower:50(电流大小，以2mA为单位，50表示100mA)
+
+
+
+		//打印Interface描述符
+				printf("\nInterface:\n  length:%d;  descriptorType:%d;  interfaceNumber:%d;\n  alternateSetting:%d;  numEndpoints:%d;  interfaceClass:0x%x;\n  interfaceSubClass:0x%x  interfaceProtocol:0x%x;  interfaceIndex:%d\n",\
+						pusb_ttyInterfaceDescr->length,pusb_ttyInterfaceDescr->descriptorType,pusb_ttyInterfaceDescr->interfaceNumber,pusb_ttyInterfaceDescr->alternateSetting,pusb_ttyInterfaceDescr->numEndpoints,\
+						pusb_ttyInterfaceDescr->interfaceClass,pusb_ttyInterfaceDescr->interfaceSubClass,pusb_ttyInterfaceDescr->interfaceProtocol,pusb_ttyInterfaceDescr->interfaceIndex);
+// Length:9(接口描述符的总长度为9);  descriptorType:4(表示指向的是接口)；   interfaceNumber：0(表示接口的数目，非0值指出在该配置所同时支持的接口阵列中的索引)；  alternateSetting：0(用于为上一个域所标识出的接口选择可供替换的设置)
+// numEndpoint:2(该接口所支持的端点数，不包括0端点)  interfaceClass:0xFF(若该位为0xFF，接口类型就由供应商所特定。其他所有的数值就保留而由USB进行分配)。  interfaceSubClass:0x0(表示数值由USB进行分配)；
+// interfaceProtocol:0x0(表示该接口上没有使用一个特定类型的协议)。  interfaceIndex:2(该值用于描述接口的字符串描述符的索引。)
+
+
+		//打印EndPoint 1 的描述符
+				printf("\nEndPoint:\n  length:%d;  descriptorType:%d;  endpointAddress:0x%x;\n  attributes:0x%x;  MaxPacketSize:%d;  interval:%d\n",\
+						pusb_ttyEndpointDescr1->length,pusb_ttyEndpointDescr1->descriptorType,pusb_ttyEndpointDescr1->endpointAddress,pusb_ttyEndpointDescr1->attributes,\
+						pusb_ttyEndpointDescr1->maxPacketSize,pusb_ttyEndpointDescr1->interval);
+//length:7;  descriptorType:5  endpointAddress:0x81(bit7: 0(OUT),1(IN) bit4..6:保留，应复位为0，bit0..3:端点号)；  Attributes:0x2(bit0..1:传输类型0x10表示批量传输);  MaxPacketSize:64(最大分组尺寸)；  Interval:0(用于轮询，对于批量和控制传输应为0)
+//端点1为输入端点
+		//打印EndPoint 2 的描述符
+				printf("\nEndPoint:\n  length:%d;  descriptorType:%d;  endpointAddress:0x%x;\n  attributes:0x%x;  MaxPacketSize:%d;  interval:%d\n",\
+						pusb_ttyEndpointDescr2->length,pusb_ttyEndpointDescr2->descriptorType,pusb_ttyEndpointDescr2->endpointAddress,pusb_ttyEndpointDescr2->attributes,\
+						pusb_ttyEndpointDescr2->maxPacketSize,pusb_ttyEndpointDescr2->interval);
+//length:7;  descriptorType:5  endpointAddress:0x1(bit7: 0(OUT),1(IN) bit4..6:保留，应复位为0，bit0..3:端点号)；  Attributes:0x2(bit0..1:传输类型0x10表示批量传输);  MaxPacketSize:64(最大分组尺寸)；  Interval:0(用于轮询，对于批量和控制传输应为0)
+//端点2为输出端点
+
+				free(pBfrReceiveData);
+				pBfrReceiveData = NULL;
+	}else{
+				printf("get configuration descriptor failed!\n");
+				free(pBfrReceiveData);
+				pBfrReceiveData = NULL;
+			}
+
+
+}
+
+
+
+//===========================================2017.05.26 END=================================================
+
+
+
+
+
+
+
+
 //===========================================2017.05.19 BEGIN===============================================
 #include "usbhotprobe.h"
 LOCAL int usbttyDrvNum = 0; /*驱动的数目*/

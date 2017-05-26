@@ -16,7 +16,7 @@ LINK_LIST * findPosition(LINK_LIST *HEAD,const int position);
 void listPrint(LINK_LIST *HEAD,const int position);
 
 
-static void radix_sort(LINK_LIST *HEAD)//基数排序也叫卡片排序(card sort)
+void radix_sort(LINK_LIST *HEAD)//基数排序也叫卡片排序(card sort)
 {
 	
 }

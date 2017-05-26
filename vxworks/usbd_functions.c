@@ -209,3 +209,30 @@ typedef struct usb_irp{
 
 
 
+
+LOCAL void usbdttyDrvAttachCallback(void *arg,SIO_CHAN *pChan, UINT16 attachCode);
+
+SATUS usbttyDevInit()
+{
+	if (initCount == 0){
+		if (UsbdClientRegister("/usbtty",&usb_ttyusbdClientHandle) != OK || \
+			usbdDynamicAttachRegister(usb_ttyusbdClientHandle,USB_TEST_CLASS,\
+				USB_TEST_SUB_CLASS,USB_TEST_DRIVE_PROTOCOL,TRUE,usbTestDevAttachCallback) != OK){
+			
+		}
+	}
+}
+
+STATUS usbttyDynamicAttachRegister(usbdttyDrvAttachCallback,(void *)NULL)
+{
+
+	s = usbdDynamicAttachRegister(usb_ttyusbdClientHandle,USB_TEST_CLASS,USB_TEST_SUB_CLASS,USB_TEST_DRIVE_PROTOCOL,TRUE,usbTestDevAttachCallback);
+	if (s == OK){
+		printf("usbdDynamicAttachRegister success!\n");
+	}else{
+		printf("usbdDynamicAttachRegister failed\n");
+	}
+
+
+
+}
