@@ -2,29 +2,31 @@
 #include <stdlib.h>
 
 struct TreeNode{
-	int key;
+	int value;
 	struct TreeNode *left;
 	struct TreeNode *right;
 };
-typedef TreeNode SearchTree;
+typedef struct TreeNode SearchTree;
 
-
-SearchTree *createRootNode(int value)
-{
-	SearchTree *root;
-	root = createNode(value);
-	return root;
-}
 
 SearchTree *CreateNode(int value)
 {
 	SearchTree *node;
-	node = (SearchTree *)calloc(sizeof(SearchTree));
+	node = (SearchTree *)calloc(1,sizeof(SearchTree));
 	node->value = value;
 	return node;
 }
 
-void insertNode(int value,const SearchTree const *ro ot)
+SearchTree *createRootNode(int value)
+{
+	SearchTree *root;
+	root = CreateNode(value);
+	return root;
+}
+
+
+
+void insertNode(int value,SearchTree *root)
 {
 	SearchTree *tmp = root;
 	SearchTree *newNode = NULL;
@@ -37,7 +39,6 @@ void insertNode(int value,const SearchTree const *ro ot)
 		}
 	}
 
-	
 }
 
 SearchTree *createSearchTree(void)
@@ -70,4 +71,20 @@ int main(int argc, char const *argv[])
 
 	root = makeEmpty();
 	return 0;
+}
+
+
+SearchTree *findMax(SearchTree *root)
+{
+
+}
+
+SearchTree *findMin(SearchTree *root)
+{
+	
+}
+
+void deleteElement(SearchTree *root,int value)
+{
+	
 }
