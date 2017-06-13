@@ -9,6 +9,7 @@ struct TreeNode{
 typedef struct TreeNode SearchTree;
 
 
+<<<<<<< HEAD
 void insertNode(int value,SearchTree *root);
 
 /*输入要创建的二叉查找树节点的值(假定全为正数),
@@ -64,6 +65,26 @@ void save_pointer(SearchTree *tmp)
 }
 
 void post_Order_record(SearchTree *root)
+=======
+SearchTree *CreateNode(int value)
+{
+	SearchTree *node;
+	node = (SearchTree *)calloc(1,sizeof(SearchTree));
+	node->value = value;
+	return node;
+}
+
+SearchTree *createRootNode(int value)
+{
+	SearchTree *root;
+	root = CreateNode(value);
+	return root;
+}
+
+
+
+void insertNode(int value,SearchTree *root)
+>>>>>>> 7bd483707d7fb1c3c3401cd58cedd2619b545612
 {
 	SearchTree *tmp = root;
 	if(tmp != NULL){
@@ -75,6 +96,7 @@ void post_Order_record(SearchTree *root)
 	return ;
 }
 
+<<<<<<< HEAD
 SearchTree ** convertToSortLink(SearchTree * root)
 {
 	post_Order_record(root);
@@ -87,6 +109,8 @@ SearchTree ** convertToSortLink(SearchTree * root)
 
 	return *p;
 	
+=======
+>>>>>>> 7bd483707d7fb1c3c3401cd58cedd2619b545612
 }
 
 
@@ -225,3 +249,25 @@ void makeEmpty(SearchTree *root)
 	return ;
 }
 
+<<<<<<< HEAD
+=======
+	root = makeEmpty();
+	return 0;
+}
+
+
+SearchTree *findMax(SearchTree *root)
+{
+
+}
+
+SearchTree *findMin(SearchTree *root)
+{
+	
+}
+
+void deleteElement(SearchTree *root,int value)
+{
+	
+}
+>>>>>>> 7bd483707d7fb1c3c3401cd58cedd2619b545612
