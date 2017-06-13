@@ -27,7 +27,7 @@ void layer_Order(SearchTree *root);	//层次遍历
 /*将二叉树转换为有序双向链表,左孩子指向前一个节点,右孩子指向后一个节点*/
 SearchTree ** convertToSortLink(SearchTree * root);
 
-static SearchTree **p = NULL;
+int **p = NULL;
 static int i = 0;
 
 
@@ -48,8 +48,10 @@ int main(int argc, char const *argv[])
 
 	layer_Order(root);
 	printf("\n");
+	i = 2;
+	printf("%d\n",i ); 
 
-	*p = (SearchTree *)malloc(20*sizeof(SearchTree));
+	p = (int *)malloc(20*sizeof(int *));
 	convertToSortLink(root);
 	free(p);
 
