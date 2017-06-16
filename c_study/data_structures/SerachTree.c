@@ -23,11 +23,12 @@ void pre_Order(SearchTree *root);  	//先根遍历
 void mid_Order(SearchTree *root);	//中根遍历
 void post_Order(SearchTree *root);	//后根遍历
 void layer_Order(SearchTree *root);	//层次遍历
+void mid_Order_record(SearchTree *root);
 
 /*将二叉树转换为有序双向链表,左孩子指向前一个节点,右孩子指向后一个节点*/
-SearchTree ** convertToSortLink(SearchTree * root);
+SearchTree * convertToSortLink(SearchTree * root);
 
-int **p = NULL;
+int *p = NULL;
 static int i = 0;
 
 
@@ -37,60 +38,83 @@ int main(int argc, char const *argv[])
 	
 	root = createSearchTree();
 	
+	printf("pre_Order:");
 	pre_Order(root);
 	printf("\n");
 	
+	printf("mid_Order:");
 	mid_Order(root);
 	printf("\n");
 
+	printf("post_Order:");
 	post_Order(root);
 	printf("\n");
 
+	printf("layer_Order:");
 	layer_Order(root);
 	printf("\n");
-	i = 2;
-	printf("%d\n",i ); 
 
 	p = (int *)malloc(20*sizeof(int *));
-	convertToSortLink(root);
-	free(p);
+	printf("P:%p\n",p);
 
+	mid_Order_record(root);	
+	// convertToSortLink(root);
+
+	printf("\n%d\n",*p);
+
+	int j=0;
+	int *tmp = p;
+	while(((SearchTree*)*tmp) != NULL){
+		printf("%d->",((SearchTree*)(*tmp+j))->value);
+		j++;
+	}
+
+
+	printf("makeEmpty:");
 	makeEmpty(root);
 	return 0;
 }
 
 void save_pointer(SearchTree *tmp)
-{
-	*(p+i) = tmp;
+{	
+	int *t = p;
+	t = (t+i);
+	printf("1.%p\n",t);
+	*t = (int *)tmp;
 	i++;
+	return ;
 }
 
-void post_Order_record(SearchTree *root)
+void mid_Order_record(SearchTree *root)
 {
 	SearchTree *tmp = root;
 	if(tmp != NULL){
-		post_Order(tmp->left);
-		post_Order(tmp->right);
-		// printf("%d->",tmp->value);
+		mid_Order_record(tmp->left);
+		printf("%p->",tmp);
 		save_pointer(tmp);
+		mid_Order_record(tmp->right);
+		// printf("%d->",tmp->value);
 	}
 	return ;
 }
 
-SearchTree ** convertToSortLink(SearchTree * root)
+
+/*SearchTree * convertToSortLink(SearchTree * root)
 {
-	post_Order_record(root);
+	mid_Order_record(root);
 
 	int j = 0;
-	while(*p != NULL){
-		printf("%d->\n",(*(p+j))->value);
+	// int *tmp = p;
+	printf("pointer value:");
+	while( j < 10  ){
+		printf("%d->",((SearchTree *)(*(p+j)))->value);
 		j++;
 	}
 
-	return *p;
+	return (SearchTree *)p;
 	
 }
-
+*/
 
 SearchTree *CreateNode(int value)
 {
@@ -171,6 +195,7 @@ void mid_Order(SearchTree *root)
 	if(tmp != NULL){
 		mid_Order(tmp->left);
 		printf("%d->",tmp->value);
+		printf("%p->",tmp);
 		mid_Order(tmp->right);
 	}
 	return ;
