@@ -59,16 +59,23 @@ max 8 byte packet). The Second and the Third are BULK IN (Max 64 Byte
 packet) and BULK OUT (Max 64 Byte Packet) end points for transfering the 
 data into the Host and from the Host respectively. The Fourth End Point, 
 is an Interrupt end point (Max 8 bytes) that is not currently used.
+设备支持4个端点，首先是默认的控制端口（最大8字节）。第二个和第三个分别是bulk in
+和bulk out端点（都是最大64byte）还有一个中断端点（最大8字节），中断并不常用。
 
 This device supports One configuration which contains One Interface. This 
 interface contains the 3 end points i.e. the Bulk IN/Out and interrupt
 end points. 
+该设备支持一个配置，该配置下有一个接口和3个端点。Bulk IN/OUT 和interrupt 端点。
  
 Apart from the traditional commands, the device supports 3 Vendor specific 
 commands. These commands are described in the Pegasus specification manual.
 The device supports interface to EEPROM for storing the Ethernet MAC address 
 and other configuration details. It also supports interface to SRAM for 
 storing the packets received and to be transmitted.
+除去通常的commands，该设备还支持3个Vendor specific commands。这些commands
+在Pegasus指定的手册当中描述。
+	该设备支持在接口的EEPROM中存储Ethernet的MAC地址和其他的配置细节，
+还支持Interface到SRAM存储接收到的和传送的数据包
 
 Packets are passed between the chip and host via bulk transfers.
 There is an interrupt endpoint mentioned in the specification manual. However
@@ -78,6 +85,10 @@ multicast filter. This device is IEEE 802.3 MII compliant and supports
 IEEE 802.3x flow control. It also supports for configurable threshold for 
 transmitting PAUSE frame. Supports Wakeup frame, Link status change and
 magic packet frame.
+
+数据通过Bulk传输，Interrupt端点在实现中并没有使用。设备可以工作在10Mbps/100Mbps
+的双工/半双工模式，MAC支持64条多播过滤。它还支持可配置的传输暂停帧阈值。
+支持Wakeup 帧，链路状态转变。
 
 The device supports the following (vendor specific)commands :
 
@@ -1956,7 +1967,9 @@ LOCAL void pegasusDestroyDevice
 *
 * This routine initializes the driver and the device to the operational state.
 * All of the device specific parameters are passed in the initString.
-* 
+* 这个例程将driver和device初始化到操作状态，
+所有的设备指定的参数都通过initString来传递。
+
 * This function first extracts the vendorId and productId of the device 
 * from the initialization string using the pegasusEndParse() function. It then 
 * passes these parametsrs and its control strcuture to the pegasusDevInit()
@@ -1966,14 +1979,26 @@ LOCAL void pegasusDestroyDevice
 * and then the memory initialization of the device is carriedout using
 * pegasusEndMemInit(). 
 *
+这个函数首先提取vendorId和productId (使用initialization string从pegasusEndParse()函数中提取)
+然后将这些参数和控制结构传递给pegasusDevInit()函数
+peagsusDevInit()函数完成大多数的设备指定的初始化将设备设置到可操作的状态。
+
+关于usbenetDevInit()更多的细节请参考PegasusLib.c，这个驱动将会被attach到MUX上然后
+设备的memory初始化被使用PegasusEndMemInit()函数来执行
+
 * This function doesn't do any thing device specific. Instead, it delegates
 * such initialization to pegasusDevInit(). This routine handles the other part
 * of the driver initialization as required by MUX.
+
+这个函数并不执行任何设备指定的初始化，设备指定参数的初始化在
+PegasusDevInit()函数中执行。这个函数处理的是MUX要求的驱动初始化的其他部分。
 *
 * muxDevLoad calls this function twice. First time this function is called, 
 * initialization string will be NULL . We are required to fill in the device 
 * name ("usb") in the string and return. The next time this function is called
 * the intilization string will be proper.
+
+muxDevLoad()函数调用这个函数两次，第一次initString为NULL,我们
 *
 * <initString> will be in the following format :
 * "unit:vendorId:productId:noOfInBfrs:noOfIrps"
@@ -2151,7 +2176,7 @@ LOCAL STATUS pegasusEndParse
     tok = strtok_r (initString, ":", &pHolder);
 
     if (tok == NULL)
-	return ERROR;
+	return ERROR
 
     pDrvCtrl->unit = atoi (tok);
 

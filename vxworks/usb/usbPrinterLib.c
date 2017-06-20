@@ -166,7 +166,8 @@ typedef struct attach_request
     } ATTACH_REQUEST, *pATTACH_REQUEST;
 
 
-/* USB_PRN_SIO_CHAN is the internal data structure we use to track each USB
+/* 
+USB_PRN_SIO_CHAN is the internal data structure we use to track each USB
  * printer.
  */
 
