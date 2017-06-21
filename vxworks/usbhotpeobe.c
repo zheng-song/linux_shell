@@ -1,3 +1,1772 @@
+/**************************************************2017.06.21    BEGIN   cp210xLib.c*********************************************/
+#ifndef CP210XLIB_H_
+#define CP210XLIB_H_
+
+#include <vxWorks.h>
+#include <iv.h>
+#include <ioLib.h>
+#include <iosLib.h>
+#include <tyLib.h>
+#include <intLib.h>
+#include <errnoLib.h>
+#include <sioLib.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <logLib.h>
+#include <selectLib.h>
+#include <lstLib.h>
+#include <vxWorksCommon.h>
+#include <String.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\usbListLib.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\usbLib.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\usbdLib.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\pciConstants.h>
+#include <D:\LambdaPRO615\target\deltaos\include\vxworks\usb\usbPciLib.h>
+
+
+#define htole16(x) (x)
+#define cpu_to_le16(x) htole16(x)
+
+
+/* Config request types */
+#define REQTYPE_HOST_TO_INTERFACE	0x41
+//0x41 = 0x 0(方向为主机到设备) 10(类型为厂商自定义) 00001(接收方为接口)
+#define REQTYPE_INTERFACE_TO_HOST	0xc1  //1100 0001
+// 0xc1 = 0x 1(设备到主机) 10(类型为厂商自定义) 00001(接收方为接口???主机的接口??)
+#define REQTYPE_HOST_TO_DEVICE	0x40
+//0x41 = 0x 0(主机到设备) 10(类型为厂商自定义) 00000(接收方为设备)
+#define REQTYPE_DEVICE_TO_HOST	0xc0
+//0xc0 = 0x 1(设备到主机) 10(厂商自定义) 00000(接收方为设备)
+
+/* Config request codes */
+/*厂商自定义的设备请求，不是标准的设备请求*/
+#define CP210X_IFC_ENABLE	0x00
+#define CP210X_SET_BAUDDIV	0x01
+#define CP210X_GET_BAUDDIV	0x02
+#define CP210X_SET_LINE_CTL	0x03
+#define CP210X_GET_LINE_CTL	0x04
+#define CP210X_SET_BREAK	0x05
+#define CP210X_IMM_CHAR		0x06
+#define CP210X_SET_MHS		0x07
+#define CP210X_GET_MDMSTS	0x08
+#define CP210X_SET_XON		0x09
+#define CP210X_SET_XOFF		0x0A
+#define CP210X_SET_EVENTMASK	0x0B
+#define CP210X_GET_EVENTMASK	0x0C
+#define CP210X_SET_CHAR		0x0D
+#define CP210X_GET_CHARS	0x0E
+#define CP210X_GET_PROPS	0x0F
+#define CP210X_GET_COMM_STATUS	0x10
+#define CP210X_RESET		0x11
+#define CP210X_PURGE		0x12
+#define CP210X_SET_FLOW		0x13
+#define CP210X_GET_FLOW		0x14
+#define CP210X_EMBED_EVENTS	0x15
+#define CP210X_GET_EVENTSTATE	0x16
+#define CP210X_SET_CHARS	0x19
+#define CP210X_GET_BAUDRATE	0x1D
+#define CP210X_SET_BAUDRATE	0x1E
+#define CP210X_VENDOR_SPECIFIC	0xFF
+
+/* CP210X_IFC_ENABLE */
+#define UART_ENABLE		0x0001
+#define UART_DISABLE		0x0000
+
+/* CP210X_(SET|GET)_BAUDDIV */
+#define BAUD_RATE_GEN_FREQ	0x384000
+
+/* CP210X_(SET|GET)_LINE_CTL */
+#define BITS_DATA_MASK		0X0f00
+#define BITS_DATA_5		0X0500
+#define BITS_DATA_6		0X0600
+#define BITS_DATA_7		0X0700
+#define BITS_DATA_8		0X0800
+#define BITS_DATA_9		0X0900
+
+#define BITS_PARITY_MASK	0x00f0
+#define BITS_PARITY_NONE	0x0000
+#define BITS_PARITY_ODD		0x0010
+#define BITS_PARITY_EVEN	0x0020
+#define BITS_PARITY_MARK	0x0030
+#define BITS_PARITY_SPACE	0x0040
+
+#define BITS_STOP_MASK		0x000f
+#define BITS_STOP_1		0x0000
+#define BITS_STOP_1_5		0x0001
+#define BITS_STOP_2		0x0002
+
+/* CP210X_SET_BREAK */
+#define BREAK_ON		0x0001
+#define BREAK_OFF		0x0000
+
+/* CP210X_(SET_MHS|GET_MDMSTS) */
+#define CONTROL_DTR		0x0001
+#define CONTROL_RTS		0x0002
+#define CONTROL_CTS		0x0010
+#define CONTROL_DSR		0x0020
+#define CONTROL_RING		0x0040
+#define CONTROL_DCD		0x0080
+#define CONTROL_WRITE_DTR	0x0100
+#define CONTROL_WRITE_RTS	0x0200
+
+/* CP210X_VENDOR_SPECIFIC values */
+#define CP210X_READ_LATCH	0x00C2
+#define CP210X_GET_PARTNUM	0x370B
+#define CP210X_GET_PORTCONFIG	0x370C
+#define CP210X_GET_DEVICEMODE	0x3711
+#define CP210X_WRITE_LATCH	0x37E1
+
+/* Part number definitions */
+#define CP210X_PARTNUM_CP2101	0x01
+#define CP210X_PARTNUM_CP2102	0x02
+#define CP210X_PARTNUM_CP2103	0x03
+#define CP210X_PARTNUM_CP2104	0x04
+#define CP210X_PARTNUM_CP2105	0x05
+#define CP210X_PARTNUM_CP2108	0x08
+
+
+#define CP210X_IN_BFR_SIZE		64    	//size of input buffer
+#define CP210X_OUT_BFR_SIZE		4096	//size of output buffer
+
+/*IRP Time out in millisecs */
+#define CP210X_IRP_TIME_OUT 	5000
+
+/* defines */
+
+/* Error Numbers as set the usbEnetLib  */
+
+/* usbEnetLib error values */
+
+/*
+ * USB errnos are defined as being part of the USB host Module, as are all
+ * vxWorks module numbers, but the USB Module number is further divided into
+ * sub-modules.  Each sub-module has upto 255 values for its own error codes
+ */
+
+#define CP210X_SUB_MODULE  	14
+
+#define M_cp210xLib 	( (CP210X_SUB_MODULE << 8) | M_usbHostLib )
+
+#define cp210xErr(x)	(M_cp210xLib | (x))
+
+#define S_cp210xLib_NOT_INITIALIZED		cp210xErr (1)
+#define S_cp210xLib_BAD_PARAM			cp210xErr (2)
+#define S_cp210xLib_OUT_OF_MEMORY		cp210xErr (3)
+#define S_cp210xLib_OUT_OF_RESOURCES	cp210xErr (4)
+#define S_cp210xLib_GENERAL_FAULT		cp210xErr (5)
+#define S_cp210xLib_QUEUE_FULL	    	cp210xErr (6)
+#define S_cp210xLib_QUEUE_EMPTY			cp210xErr (7)
+#define S_cp210xLib_NOT_IMPLEMENTED		cp210xErr (8)
+#define S_cp210xLib_USBD_FAULT	    	cp210xErr (9)
+#define S_cp210xLib_NOT_REGISTERED		cp210xErr (10)
+#define S_cp210xLib_NOT_LOCKED	    	cp210xErr (11)
+
+
+
+
+#define CP210X_CLASS 				0x10C4		//4292
+#define CP210X_SUB_CLASS			0xEA60		//6000
+#define CP210X_DRIVER_PROTOCOL	 	0x0100 		//256
+
+
+//#define CP210X_SWAP_16(x)			((LSB(x) << 8)|MSB(x))
+
+
+#define CP210X_ATTACH 		0
+#define CP210X_REMOVE		1
+
+#define USB_CSW_LENGTH		0x0D	//Length of CSW
+#define USB_CBW_MAX_CBLEN	0x10	//Max length of command block
+
+
+
+typedef struct cp210x_flow_ctl{
+	UINT32 ulControlHandshake;
+	UINT32 ulFlowReplace;
+	UINT32 ulXonLimit;
+	UINT32 ulXoffLimit;
+}CP210X_FLOW_CTL;
+
+#define BITS_PER_LONG (__CHAR_BIT__ * __SIZEOF_LONG__)
+#define GENMASK(h, l) \
+	(((~0UL) << (l)) & (~0UL >> (BITS_PER_LONG - 1 - (h))))
+
+#define BIT(nr)			(1UL << (nr))
+/* cp210x_flow_ctl::ulControlHandshake */
+#define CP210X_SERIAL_DTR_MASK		GENMASK(1, 0)
+#define CP210X_SERIAL_DTR_SHIFT(_mode)	(_mode)
+#define CP210X_SERIAL_CTS_HANDSHAKE	BIT(3)
+#define CP210X_SERIAL_DSR_HANDSHAKE	BIT(4)
+#define CP210X_SERIAL_DCD_HANDSHAKE	BIT(5)
+#define CP210X_SERIAL_DSR_SENSITIVITY	BIT(6)
+
+/* values for cp210x_flow_ctl::ulControlHandshake::CP210X_SERIAL_DTR_MASK */
+#define CP210X_SERIAL_DTR_INACTIVE	0
+#define CP210X_SERIAL_DTR_ACTIVE	1
+#define CP210X_SERIAL_DTR_FLOW_CTL	2
+
+/* cp210x_flow_ctl::ulFlowReplace */
+#define CP210X_SERIAL_AUTO_TRANSMIT	BIT(0)
+#define CP210X_SERIAL_AUTO_RECEIVE	BIT(1)
+#define CP210X_SERIAL_ERROR_CHAR	BIT(2)
+#define CP210X_SERIAL_NULL_STRIPPING	BIT(3)
+#define CP210X_SERIAL_BREAK_CHAR	BIT(4)
+#define CP210X_SERIAL_RTS_MASK		GENMASK(7, 6)
+#define CP210X_SERIAL_RTS_SHIFT(_mode)	(_mode << 6)
+#define CP210X_SERIAL_XOFF_CONTINUE	BIT(31)
+
+/* values for cp210x_flow_ctl::ulFlowReplace::CP210X_SERIAL_RTS_MASK */
+#define CP210X_SERIAL_RTS_INACTIVE	0
+#define CP210X_SERIAL_RTS_ACTIVE	1
+#define CP210X_SERIAL_RTS_FLOW_CTL	2
+
+
+/*
+ * USB设备结构： 这个结构是用在动态注册回调函数中的主结构
+ * 之后当最后的end_obj结构被创建之后，这个结构将被链接
+ * 到end_obj结构体。
+ * */
+typedef struct cp210x_dev{
+	LINK 			cp210xDevLink;	/*设备结构体的链表*/
+	USBD_NODE_ID	nodeId;			/*设备的NODE ID*/
+	UINT16 			configuration;	/*设备的配置*/
+	UINT16			interface;		/*设备的接口*/
+
+	UINT16 			vendorId;		/*设备的厂商ID */
+	UINT16 			productId;		/*设备的产品ID*/
+	UINT16 			lockCount;     	/*设备结构体上锁的次数*/
+	BOOL   			connected;		/*是否已连接*/
+
+	VOID			*pCp210xDevice;
+}CP210X_DEV,*pCp210xListDev;
+
+
+
+
+
+typedef struct cp210x_sio_chan{
+	SIO_CHAN sioChan;		/*serial device struct,must be the first*/
+	LINK cp210xSioLink;	/* linked list of cp210x structs */
+
+	USBD_NODE_ID nodeId;			/*device nodeID*/
+	UINT16 configuration;	/*configuration/interface reported as*/
+	UINT16 interface;		/*a interface of this device*/
+	UINT16 interfaceAltSetting;
+
+	UINT16 vendorId;		/*厂商ID */
+	UINT16 productId;		/*设备的产品ID*/
+
+	BOOL connected;		/*是否已连接*/
+	UINT16 lockCount;				/* Count of times structure locked */
+
+	CP210X_DEV * pDev;			/* the device info */
+
+	UINT8 communicateOk;	    /* TRUE after Starting and FALSE if stopped */
+
+	int noOfOutIrps;		    /* no of Irps */
+	int	 txIrpIndex;		    /* What the last submitted IRP is */
+
+	USBD_PIPE_HANDLE outPipeHandle; /* USBD pipe handle for bulk OUT pipe */
+	USB_IRP	outIrp;					/*IRP to monitor output to device*/
+	BOOL outIrpInUse;				/*TRUE while IRP is outstanding*/
+	char  *pOutBfr;					/* pointer to output buffer */
+	UINT16 outBfrLen;		    	/* size of output buffer */
+	UINT32 outErrors;		    	/* count of IRP failures */
+
+	/*
+	 * since we don't use inIrp in this driver ,so we ust define here
+	 * but not actually use it
+	 * */
+	USBD_PIPE_HANDLE inPipeHandle;  /* USBD pipe handle for bulk IN pipe */
+	USB_IRP inIrp;				/* IRP to monitor input from printer */
+	BOOL inIrpInUse;		    /* TRUE while IRP is outstanding */
+	int	noOfInBfrs;	     		/* no of input buffers*/
+	char * pInBfr;				/* pointer to input buffers */
+	UINT16 inBfrLen;		    /* size of input buffer */
+	UINT32 inErrors;		    /* count of IRP failures */
+
+	UINT16 	inEpAddr;
+	UINT16  outEpAddr;
+
+	USB_IRP 		statusIrp;
+	SEM_HANDLE cp210xIrpSem;
+
+	int mode;		/*always SIO_MODE_INT*/
+
+	STATUS(*getTxCharCallback)();/*tx callback*/
+	void *getTxCharArg;	/*tx callback argument*/
+
+	STATUS(*putRxCharCallback)();/*rx callback*/
+	void *putRxCharArg;/*rx callback argument*/
+
+	BOOL txStall;   /* Indicates we ran out of TX IRP's */
+	BOOL txActive;  /* Indicates there is a TX IRP in process with the USB Stack */
+
+} CP210X_SIO_CHAN, *pCp210xSioChan;
+
+
+
+/******************************************************************************
+ * CP210X_ATTACH_CALLBACK defines a callback routine which will be
+ * invoked by cp210xLib.c when the attachment or removal of a
+ * USB-RS232 device is detected.  When the callback is invoked with an attach
+ * code of CP210X_ATTACH, the nodeId represents the ID of newly added device.
+ * When the attach code is CP210X_REMOVE, nodeId points to the device
+ * which is no longer attached.
+ */
+
+typedef VOID (* CP210X_ATTACH_CALLBACK)(
+	pVOID arg,			/* caller-defined argument */
+	CP210X_DEV *pDev,	/* pointer to affected SIO_CHAN */
+	UINT16 attachCode	/* defined as USB_TTY_xxxx */
+);
+
+/*function prototypes*/
+STATUS cp210xDevInit (void);
+STATUS cp210xDevShutdown (void);
+
+STATUS cp210xDynamicAttachRegister(
+	CP210X_ATTACH_CALLBACK callback,	/* new callback to be registered */
+	pVOID arg							/* user-defined arg to callback */
+);
+
+STATUS cp210xDynamicAttachUnRegister(
+	CP210X_ATTACH_CALLBACK callback,	/* callback to be unregistered */
+	pVOID arg							/* user-defined arg to callback */
+);
+
+STATUS cp210xSioChanLock(SIO_CHAN *pChan);
+
+STATUS cp210xSioChanUnlock(SIO_CHAN *pChan);
+
+#endif /* CP210XLIB_H_ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#include "cp210xLib.h"
+
+#define CP210X_CLIENT_NAME 	"cp210xLib"    	/* our USBD client name */
+
+/*globals*/
+USBD_CLIENT_HANDLE  cp210xHandle; 	/* our USBD client handle */
+USBD_NODE_ID 	cp210xNodeId;			/*our USBD node ID*/
+
+/*locals*/
+LOCAL UINT16 		initCount = 0;			/* Count of init nesting */
+LOCAL LIST_HEAD 	cp210xDevList;			/* linked list of CP210X_SIO_CHAN */
+LOCAL LIST_HEAD 	reqList;				/* Attach callback request list */
+
+LOCAL MUTEX_HANDLE 	cp210xMutex;   			/* mutex used to protect internal structs */
+
+LOCAL UINT32 		usbCp210xIrpTimeOut = CP210X_IRP_TIME_OUT;
+
+
+LOCAL UINT16 cp210xAdapterList[][2] = {
+		{ 0x045B, 0x0053 },
+		{ 0x0471, 0x066A },
+		{ 0x0489, 0xE000 },
+		{ 0x0489, 0xE003 },
+		{ 0x10C4, 0x80F6 },
+		{ 0x10C4, 0x8115 },
+		{ 0x10C4, 0x813D },
+		{ 0x10C4, 0x813F },
+		{ 0x10C4, 0x814A },
+		{ 0x10C4, 0x814B },
+		{ 0x2405, 0x0003 },
+		{ 0x10C4, 0xEA60 },
+};
+
+typedef struct attach_request{
+	LINK reqLink;						/*linked list of requests*/
+	CP210X_ATTACH_CALLBACK callback; 	/*client callback routine*/
+	pVOID callbackArg;  				/*client callback argument*/
+}ATTACH_REQUEST,*pATTACH_REQUEST;
+
+//============================================================================//
+LOCAL int cp210xTxStartUp(SIO_CHAN *pSioChan);
+LOCAL int cp210xCallbackInstall(SIO_CHAN *pSioChan,int CallbackType,
+		STATUS(*callback)(void *,...),void *callbackArg);
+LOCAL int cp210xPollOutput(SIO_CHAN *pSioChan,char outChar);
+LOCAL int cp210xPollInput(SIO_CHAN *pSioChan,char *thisChar);
+LOCAL int cp210xIoctl(SIO_CHAN *pSioChan,int request,void *arg);
+
+
+/*channel function table.*/
+LOCAL SIO_DRV_FUNCS cp210xSioDrvFuncs ={
+		cp210xIoctl,
+		cp210xTxStartUp,
+		cp210xCallbackInstall,
+		cp210xPollInput,
+		cp210xPollOutput
+};
+
+
+/***************************************************************************
+*
+* findSioChan - Searches for a CP210X_SIO_CHAN for indicated node ID
+*
+* This fucntion searches for the pointer of CP210X_SIO_CHAN  structure
+* for the indicated <nodeId>.
+*
+* RETURNS: pointer to matching CP210X_SIO_CHAN or NULL if not found
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+LOCAL CP210X_SIO_CHAN * findSioChan(USBD_NODE_ID nodeId)
+{
+	CP210X_SIO_CHAN * pSioChan = usbListFirst(&cp210xDevList);
+
+	while(pSioChan != NULL){
+		if(pSioChan->nodeId == nodeId)
+			break;
+
+		pSioChan = usbListNext(&pSioChan->cp210xSioLink);
+	}
+	return pSioChan;
+}
+
+//***************************************************************************
+/*
+* notifyAttach - notifies registered callers of attachment/removal
+*
+* This function notifies the registered clients about the device attachment
+* and removal
+*
+* RETURNS: N/A
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+LOCAL VOID notifyAttach(CP210X_SIO_CHAN * pSioChan,UINT16 attachCode)
+{
+	printf("IN notifyAttach\n");
+
+	pATTACH_REQUEST pRequest = usbListFirst(&reqList);
+
+    while (pRequest != NULL){
+    	(*pRequest->callback) (pRequest->callbackArg,
+    			(SIO_CHAN *)pSioChan, attachCode);
+    	pRequest = usbListNext (&pRequest->reqLink);
+    }
+}
+
+/***************************************************************************
+*
+* cp210xOutIrpInUse - determines if any of the output IRP's are in use
+*
+* This function determines if any of the output IRP's are in use and returns
+* the status information
+*
+* RETURNS: TRUE if any of the IRP's are in use, FALSE otherwise.
+*
+* ERRNO: none
+*/
+
+/*BOOL cp210xOutIrpInUse(CP210X_SIO_CHAN * pSioChan)
+{
+	BOOL inUse = FALSE;
+    int i;
+
+    for (i=0;i<pSioChan->noOfOutIrps;i++){
+        if (pSioChan->outIrpInUse){
+            inUse = TRUE;
+            break;
+        }
+    }
+    return(inUse);
+}*/
+
+
+/***************************************************************************
+*
+* destorySioChan - disposes of a CP210X_SIO_CHAN structure
+*
+* Unlinks the indicated CP210X_SIO_CHAN structure and de-allocates
+* resources associated with the channel.
+*
+* RETURNS: N/A
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+
+LOCAL void destorySioChan(CP210X_SIO_CHAN * pSioChan)
+{
+	printf("IN destorySioChan\n");
+	if (pSioChan != NULL){
+		/* Unlink the structure. */
+		usbListUnlink (&pSioChan->cp210xSioLink);
+
+		/* Release pipes and wait for IRPs to be cancelled if necessary. */
+		if (pSioChan->outPipeHandle != NULL)
+			usbdPipeDestroy (cp210xHandle, pSioChan->outPipeHandle);
+
+		if (pSioChan->inPipeHandle != NULL)
+			usbdPipeDestroy (cp210xHandle, pSioChan->inPipeHandle);
+
+		/* The outIrpInUse or inIrpInUse can be set to FALSE only when the mutex
+		 * is released. So releasing the mutex here
+		 */
+		OSS_MUTEX_RELEASE (cp210xMutex);
+
+		while (pSioChan->outIrpInUse || pSioChan->inIrpInUse)
+			    OSS_THREAD_SLEEP (1);
+
+		/* Acquire the mutex again */
+		OSS_MUTEX_TAKE (cp210xMutex, OSS_BLOCK);
+
+		/* release buffers */
+		if (pSioChan->pOutBfr != NULL)
+		    OSS_FREE (pSioChan->pOutBfr);
+
+		if (pSioChan->pInBfr != NULL)
+			OSS_FREE (pSioChan->pInBfr);
+
+		/* Release structure. */
+		OSS_FREE (pSioChan);
+
+		/* Release structure. */
+		/* This constitutes a memory leak, however leaving it in
+		 *  causes failure.
+		if (pSioChan !=NULL)
+			OSS_FREE (pSioChan);
+		*/
+	}
+}
+
+/***************************************************************************
+*
+* findEndpoint - searches for a BULK endpoint of the indicated direction.
+*
+* This function searches for the endpoint of indicated direction,
+* used in createDevStructure().
+*
+* RETURNS: a pointer to matching endpoint descriptor or NULL if not found.
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+
+LOCAL pUSB_ENDPOINT_DESCR findEndpoint
+    (
+    pUINT8 pBfr,		/* buffer to search for */
+    UINT16 bfrLen,		/* buffer length */
+    UINT16 direction		/* end point direction */
+    )
+    {
+    pUSB_ENDPOINT_DESCR pEp;
+
+    while ((pEp = (pUSB_ENDPOINT_DESCR)
+	    usbDescrParseSkip (&pBfr, &bfrLen, USB_DESCR_ENDPOINT))
+		!= NULL)
+	{
+	if ((pEp->attributes & USB_ATTR_EPTYPE_MASK) == USB_ATTR_BULK &&
+	    (pEp->endpointAddress & USB_ENDPOINT_DIR_MASK) == direction)
+	    break;
+	}
+
+    return pEp;
+    }
+
+/***************************************************************************
+*
+* cp210xIrpCallback - Invoked upon IRP completion
+*
+* Examines the status of the IRP submitted.
+*
+* RETURNS: N/A
+*
+* ERRNO: none
+*
+*\NOMANUAL
+*/
+
+LOCAL void cp210xIrpCallback(
+		pVOID p//pointer to the IRP submitted
+		){
+
+	printf("IN cp210xIrpCallback\n");
+	USB_IRP	*pIrp = (USB_IRP *)p;
+	CP210X_SIO_CHAN *pPhysDev = pIrp->userPtr;
+
+    // check whether the IRP was for bulk out/ bulk in / status transport
+    // 检查这个IRP是否是用于BULK OUT/BULK IN的状态报告的。
+    if (pIrp == &(pPhysDev->outIrp) ){
+    	// check the result of IRP
+        if (pIrp->result == OK){
+        	printf("cp210xIrpCallback: Num of Bytes transferred on "\
+        			"out pipe is:%d\n",pIrp->bfrList[0].actLen);
+        }else{
+        	printf("cp210xIrpCallback: Irp failed on Bulk Out %x \n",pIrp->result);
+
+            /* Clear HALT Feature on Bulk out Endpoint */
+            if ((usbdFeatureClear (cp210xHandle,cp210xNodeId,USB_RT_ENDPOINT,
+            		USB_FSEL_DEV_ENDPOINT_HALT,(pPhysDev->outEpAddr & 0xFF)))
+				 != OK){
+                printf("cp210xIrpCallback: Failed to clear HALT "\
+                              "feauture on bulk out Endpoint\n");
+            }
+        }
+    }else if (pIrp == &(pPhysDev->statusIrp))    /* if status block IRP */
+    {
+    	// check the result of the IRP
+    	if (pIrp->result == OK){
+    		printf("cp210xIrpCallback : Num of Status Bytes \
+                            read  =%d \n", pIrp->bfrList[0].actLen);
+    	}else{
+    		// status IRP failed
+    		printf("cp210xIrpCallback: Status Irp failed on Bulk in "\
+                          "%x\n", pIrp->result);
+    	}
+    }else{
+    	// IRP for bulk_in data
+    	if (pIrp->result == OK){
+            printf("cp210xIrpCallback: Num of Bytes read from Bulk "\
+                            "In =%d\n", pIrp->bfrList[0].actLen);
+    	}else{
+    		// IRP on BULK IN failed
+            printf("cp210xIrpCallback : Irp failed on Bulk in ,%x\n",
+                            pIrp->result);
+
+            // Clear HALT Feature on Bulk in Endpoint
+            if ((usbdFeatureClear (cp210xHandle, cp210xNodeId, USB_RT_ENDPOINT,
+            		USB_FSEL_DEV_ENDPOINT_HALT,(pPhysDev->inEpAddr & 0xFF)))
+            		!= OK){
+            	printf ("cp210xIrpCallback: Failed to clear HALT "\
+                              "feature on bulk in Endpoint %x\n");
+            }
+    	}
+    }
+
+    OSS_SEM_GIVE (pPhysDev->cp210xIrpSem);
+}
+//=========================================================================
+LOCAL STATUS cp210xSetTermiosPort(CP210X_SIO_CHAN *pSioChan)
+{
+	int length = 0;
+	UINT16 actLength;
+
+	if(usbdVendorSpecific(cp210xHandle,cp210xNodeId,REQTYPE_HOST_TO_INTERFACE,
+			CP210X_IFC_ENABLE,UART_ENABLE,
+			pSioChan->interface,0,NULL,&actLength) != OK)
+		return ERROR;
+
+	/*获取波特率*/
+	UINT32 baud;
+	length = sizeof(UINT32);
+
+	if(usbdVendorSpecific(cp210xHandle,cp210xNodeId,REQTYPE_INTERFACE_TO_HOST,
+			CP210X_GET_BAUDRATE,0,pSioChan->interface,
+			length,(pUINT8)&baud,&actLength)!= OK)
+		return ERROR;
+
+	/*设置波特率*/
+	baud = 115200;
+	length = sizeof(baud);
+	if(usbdVendorSpecific(cp210xHandle,cp210xNodeId,REQTYPE_HOST_TO_INTERFACE,
+			CP210X_SET_BAUDRATE,0,pSioChan->interface,length,(pUINT8)&baud,&actLength) != OK){
+		return ERROR;
+	}
+
+/*再次获取波特率，确认是否写入*/
+	UINT32 baudNow = 0;
+	length = sizeof(UINT32);
+
+	if(usbdVendorSpecific(cp210xHandle,cp210xNodeId,REQTYPE_INTERFACE_TO_HOST,
+			CP210X_GET_BAUDRATE,0,pSioChan->interface,
+			length,(pUINT8)&baudNow,&actLength)!= OK){
+		return ERROR;
+	}else{
+		printf("the baudrate is :%d\n",baudNow);
+	}
+
+//设置为8个数据位，1个停止位，没有奇偶校验，没有流控。
+	UINT16 bits;
+	length = sizeof(UINT16);
+	if(usbdVendorSpecific(cp210xHandle,cp210xNodeId,REQTYPE_INTERFACE_TO_HOST,
+			CP210X_GET_LINE_CTL,0,pSioChan->interface,
+			length,(pUINT8)&bits,&actLength)!= OK)
+		return ERROR;
+
+	bits &= ~(BITS_DATA_MASK | BITS_PARITY_MASK | BITS_STOP_MASK);
+	bits |= (BITS_DATA_8 | BITS_PARITY_NONE | BITS_STOP_1);
+
+	if(usbdVendorSpecific(cp210xHandle,cp210xNodeId,REQTYPE_HOST_TO_INTERFACE,
+			CP210X_SET_LINE_CTL,bits,
+			pSioChan->interface,0,NULL,&actLength) != OK)
+		return ERROR;
+
+/*重新查看当前bits设置*/
+	UINT16 bitsNow;
+	length = sizeof(bitsNow);
+	if(usbdVendorSpecific(cp210xHandle,cp210xNodeId,REQTYPE_INTERFACE_TO_HOST,
+			CP210X_GET_LINE_CTL,0,pSioChan->interface,
+			length,(pUINT8)&bitsNow,&actLength)!= OK)
+		return ERROR;
+
+	switch(bitsNow & BITS_DATA_MASK){
+	case BITS_DATA_5:
+		printf("data bits = 5\t");
+		break;
+
+	case BITS_DATA_6:
+		printf("data bits = 6\t");
+		break;
+
+	case BITS_DATA_7:
+		printf("data bits = 7\t");
+		break;
+
+	case BITS_DATA_8:
+		printf("data bits = 8\t");
+		break;
+
+	default:
+		printf("unknow number of data bits.using 8\n");
+		return ERROR;
+//		break;
+	}
+
+	switch(bitsNow & BITS_PARITY_MASK){
+	case BITS_PARITY_NONE:
+		printf("patiry = NONE\t");
+		break;
+
+	case BITS_PARITY_ODD:
+		printf("patiry = ODD\t");
+		break;
+
+	case BITS_PARITY_EVEN:
+		printf("patiry = EVEN\t");
+		break;
+
+	case BITS_PARITY_MASK:
+		printf("patiry = MASK\t");
+		break;
+
+	case BITS_PARITY_SPACE:
+		printf("patiry = SPACE\t");
+		break;
+
+	default :
+		printf("Unknow parity mode.disabling patity\n");
+		return ERROR;
+//		break;
+	}
+
+	switch (bitsNow & BITS_STOP_MASK){
+	case BITS_STOP_1:
+		printf("stop bits = 1\t");
+		break;
+
+	case BITS_STOP_1_5:
+		printf("stop bits = 1.5\t");
+		break;
+
+	case BITS_STOP_2:
+		printf("stop bits = 2\t");
+		break;
+
+	default:
+		printf("Unknown number of stop bitsNow,using 1 stop bit\n");
+		return ERROR;
+	}
+	printf("\n");
+	return OK;
+}
+
+
+
+
+/***************************************************************************
+*
+* configSioChan - configure cp210x for operation
+*
+* Selects the configuration/interface specified in the <pSioChan>
+* structure.  These values come from the USBD dynamic attach callback,
+* which in turn retrieved them from the configuration/interface
+* descriptors which reported the device to be a printer.
+*
+* RETURNS: OK if successful, else ERROR if failed to configure channel
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+
+STATUS configSioChan(CP210X_SIO_CHAN *pSioChan)
+{
+	USB_CONFIG_DESCR 	* pCfgDescr;
+	USB_INTERFACE_DESCR * pIfDescr;
+	USB_ENDPOINT_DESCR 	* pOutEp;
+	USB_ENDPOINT_DESCR 	* pInEp;
+	UINT8 * pBfr;
+	UINT8 * pScratchBfr;
+	UINT16 actLen;
+	UINT16 maxPacketSize;
+
+    if ((pBfr = OSS_MALLOC (USB_MAX_DESCR_LEN)) == NULL)
+    	return ERROR;
+
+    /* Read the configuration descriptor to get the configuration selection
+     * value and to determine the device's power requirements.
+     * Configuration index is assumed to be one less than config'n value
+     */
+
+    if (usbdDescriptorGet (cp210xHandle, pSioChan->nodeId,
+    			USB_RT_STANDARD | USB_RT_DEVICE, USB_DESCR_CONFIGURATION,
+    			0, 0, USB_MAX_DESCR_LEN, pBfr, &actLen) != OK){
+    	OSS_FREE (pBfr);
+    	return ERROR;
+    }
+
+	if ((pCfgDescr = usbDescrParse (pBfr, actLen,
+			USB_DESCR_CONFIGURATION)) == NULL){
+        OSS_FREE (pBfr);
+        return ERROR;
+	}
+
+	pSioChan->configuration = pCfgDescr->configurationValue;
+
+    /*
+     * usbDescrParseSkip() modifies the value of the pointer it recieves
+     * so we pass it a copy of our buffer pointer
+     */
+	UINT16 ifNo = 0;
+	pScratchBfr = pBfr;
+
+	while ((pIfDescr = usbDescrParseSkip (&pScratchBfr,&actLen,
+			USB_DESCR_INTERFACE))!= NULL){
+		/*look for the interface indicated in the pSioChan structure*/
+		if (ifNo == pSioChan->interface)
+			break;
+		ifNo++;
+	}
+
+	if (pIfDescr == NULL){
+		OSS_FREE (pBfr);
+		return ERROR;
+	}
+
+	pSioChan->interfaceAltSetting = pIfDescr->alternateSetting;
+//	pSioChan->interface = pIfDescr->interfaceNumber;
+
+	/*if ((pIfDescr = usbDescrParseSkip (&pScratchBfr, &actLen,
+			USB_DESCR_INTERFACE)) == NULL){
+		OSS_FREE (pBfr);
+		return ERROR;
+	}*/
+
+
+    /* Retrieve the endpoint descriptor(s) following the identified interface
+     * descriptor.
+     */
+	if ((pOutEp = findEndpoint (pScratchBfr, actLen, USB_ENDPOINT_OUT)) == NULL){
+		OSS_FREE (pBfr);
+        return ERROR;
+	}
+
+	if ((pInEp = findEndpoint (pScratchBfr, actLen, USB_ENDPOINT_IN)) == NULL){
+		OSS_FREE (pBfr);
+		return ERROR;
+	}
+
+	pSioChan->outEpAddr = pOutEp->endpointAddress;
+	pSioChan->inEpAddr = pInEp->endpointAddress;
+
+
+    /* Select the configuration. */
+	if (usbdConfigurationSet (cp210xHandle, cp210xNodeId,
+				pCfgDescr->configurationValue,
+				pCfgDescr->maxPower * USB_POWER_MA_PER_UNIT) != OK){
+        OSS_FREE (pBfr);
+        return ERROR;
+    }
+
+    /* Select interface
+     *
+     * NOTE: Some devices may reject this command, and this does not represent
+     * a fatal error.  Therefore, we ignore the return status.
+     */
+
+    usbdInterfaceSet(cp210xHandle,cp210xNodeId,pSioChan->interface,\
+			pIfDescr->alternateSetting);
+
+    /* Create a pipe for output . */
+	maxPacketSize = *((pUINT8) &pOutEp->maxPacketSize) |
+			(*(((pUINT8) &pOutEp->maxPacketSize) + 1) << 8);
+
+	if(usbdPipeCreate(cp210xHandle,cp210xNodeId,pOutEp->endpointAddress,\
+			pCfgDescr->configurationValue,pSioChan->interface,\
+			USB_XFRTYPE_BULK,USB_DIR_OUT,maxPacketSize,
+			0,0,&pSioChan->outPipeHandle)!= OK){
+		OSS_FREE (pBfr);
+		return ERROR;
+	}
+
+	/*Create a pipe for input*/
+	maxPacketSize = *((pUINT8)&pInEp->maxPacketSize) |
+			(*(((pUINT8)&pInEp->maxPacketSize)+1) << 8);
+
+	if(usbdPipeCreate(cp210xHandle,cp210xNodeId,pInEp->endpointAddress,\
+			pCfgDescr->configurationValue,pSioChan->interface,\
+			USB_XFRTYPE_BULK,USB_DIR_IN,maxPacketSize,
+			0,0,&pSioChan->inPipeHandle)!= OK){
+		OSS_FREE (pBfr);
+		return ERROR;
+	}
+
+	if(cp210xSetTermiosPort(pSioChan) != OK){
+		OSS_FREE(pBfr);
+		return ERROR;
+	}
+
+	/* Clear HALT feauture on the endpoints */
+	if ((usbdFeatureClear (cp210xHandle, cp210xNodeId, USB_RT_ENDPOINT,
+			USB_FSEL_DEV_ENDPOINT_HALT, (pOutEp->endpointAddress & 0xFF)))
+			!= OK){
+		OSS_FREE(pBfr);
+		return ERROR;
+	}
+
+	if ((usbdFeatureClear (cp210xHandle, cp210xNodeId, USB_RT_ENDPOINT,
+			USB_FSEL_DEV_ENDPOINT_HALT,(pInEp->endpointAddress & 0xFF)))
+			!= OK){
+		OSS_FREE(pBfr);
+		return ERROR;
+	}
+
+
+	char e[8]="0303030";
+	pSioChan->outIrp.transferLen = sizeof (e);
+	pSioChan->outIrp.result = -1;
+	pSioChan->outIrp.bfrCount = 1;
+	pSioChan->outIrp.bfrList [0].pid = USB_PID_OUT;
+	pSioChan->outIrp.bfrList [0].pBfr = (pUINT8)e;
+	pSioChan->outIrp.bfrList [0].bfrLen = sizeof (e);
+	if (usbdTransfer (cp210xHandle, pSioChan->outPipeHandle, &pSioChan->outIrp) != OK){
+	printf("usbdtransfer returned false\n");
+	}
+
+	sleep(2);
+
+	char f[]="hello world!";
+	pSioChan->outIrp.transferLen = sizeof (f);
+	pSioChan->outIrp.result = -1;
+	pSioChan->outIrp.bfrCount = 1;
+	pSioChan->outIrp.bfrList [0].pid = USB_PID_OUT;
+	pSioChan->outIrp.bfrList [0].pBfr = (pUINT8)f;
+	pSioChan->outIrp.bfrList [0].bfrLen = sizeof (f);
+	if (usbdTransfer (cp210xHandle, pSioChan->outPipeHandle, &pSioChan->outIrp) != OK){
+	printf("usbdtransfer returned false\n");
+	}
+
+	sleep(2);
+   char g[]="你好";
+   pSioChan->outIrp.transferLen = sizeof (g);
+   pSioChan->outIrp.result = -1;
+   pSioChan->outIrp.bfrCount = 1;
+   pSioChan->outIrp.bfrList [0].pid = USB_PID_OUT;
+   pSioChan->outIrp.bfrList [0].pBfr = (pUINT8)g;
+   pSioChan->outIrp.bfrList [0].bfrLen = sizeof (g);
+   if (usbdTransfer (cp210xHandle, pSioChan->outPipeHandle, &pSioChan->outIrp) != OK){
+	printf("usbdtransfer returned false\n");
+   }
+   sleep(2);
+
+			/*if (listenForInput (pSioChan) != OK)
+            {
+            OSS_FREE (pBfr);
+            return ERROR;
+            }*/
+//	pSioChan->inIrpInUse = FALSE;
+    OSS_FREE (pBfr);
+
+    return OK;
+}
+
+
+
+/***************************************************************************
+*
+* createSioChan - creates a new CP210X_SIO_CHAN structure
+*
+* Creates a new CP210X_SIO_CHAN structure for the indicated CP210_DEV.
+* If successful, the new structure is linked into the sioList upon
+* return.
+*
+* <configuration> and <interface> identify the configuration/interface
+* that first reported itself as a printer for this device.
+*
+* RETURNS: pointer to newly created structure, or NULL if failure
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+STATUS createSioChan(CP210X_SIO_CHAN *pSioChan)
+{
+	 /*Try to allocate space for the new structure's parameter*/
+	if ((pSioChan->pOutBfr = OSS_CALLOC(CP210X_OUT_BFR_SIZE))== NULL )
+		return ERROR;
+
+	/*we don't use IN PIPE*/
+	/*if((pSioChan->InBfr = OSS_CALLOC(CP210X_IN_BFR_SIZE)) == NULL){
+		destorySioChan(pSioChan);
+		return NULL;
+	}*/
+
+	pSioChan->txIrpIndex = 0;
+	pSioChan->txStall = FALSE;
+	pSioChan->txActive = FALSE;
+
+	pSioChan->outBfrLen = CP210X_OUT_BFR_SIZE;
+//	pSioChan->inBfrLen = CP210X_IN_BFR_SIZE;
+
+	pSioChan->sioChan.pDrvFuncs = &cp210xSioDrvFuncs;
+	pSioChan->mode = SIO_MODE_POLL;
+
+	/*initial outIrp*/
+	pSioChan->outIrp.irpLen				= sizeof (USB_IRP);
+	pSioChan->outIrp.userCallback		= cp210xIrpCallback;
+	pSioChan->outIrp.timeout            = usbCp210xIrpTimeOut;
+	pSioChan->outIrp.bfrCount          = 0x01;
+	pSioChan->outIrp.bfrList[0].pid    = USB_PID_OUT;
+	pSioChan->outIrp.userPtr           = pSioChan;
+
+	//初始化Device的InIrp
+/*	pSioChan->inIrp.irpLen				= sizeof (USB_IRP);
+	pSioChan->inIrp.userCallback		= cp210xIrpCallback;
+	pSioChan->inIrp.timeout            = usbCp210xIrpTimeOut;
+	pSioChan->inIrp.bfrCount          = 0x01;
+	pSioChan->inIrp.bfrList[0].pid    = USB_PID_IN;
+	pSioChan->inIrp.userPtr           = pSioChan;*/
+
+	/*Try to configure the cp210x device*/
+	if(configSioChan(pSioChan) != OK)
+			return ERROR;
+
+	if (OSS_SEM_CREATE( 1, 1, &pSioChan->cp210xIrpSem) != OK){
+		return ERROR;
+//        return(cp210xShutdown(S_cp210xLib_OUT_OF_RESOURCES));
+	}
+	return OK;
+}
+
+/***************************************************************************
+*
+* cp210xLibAttachCallback - gets called for attachment/detachment of devices
+*
+* The USBD will invoke this callback when a USB to RS232 device is
+* attached to or removed from the system.
+* <nodeId> is the USBD_NODE_ID of the node being attached or removed.
+* <attachAction> is USBD_DYNA_ATTACH or USBD_DYNA_REMOVE.
+* Communication device functionality resides at the interface level, with
+* the exception of being the definition of the Communication device class
+* code.so <configuration> and <interface> will indicate the configuration
+* or interface that reports itself as a USB to RS232 device.
+* <deviceClass> and <deviceSubClass> will match the class/subclass for
+* which we registered.
+* <deviceProtocol> doesn't have meaning for the USB to RS232 devices so we
+* ignore this field.
+*
+* NOTE
+* The USBD invokes this function once for each configuration or
+* interface which reports itself as a USB to RS232 device.
+* So, it is possible that a single device insertion or removal may trigger
+* multiple callbacks.  We ignore all callbacks except the first for a
+* given device.
+*
+* RETURNS: N/A
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+
+LOCAL STATUS cp210xLibAttachCallback ( USBD_NODE_ID nodeId, UINT16 attachAction, UINT16 configuration,
+		UINT16 interface,UINT16 deviceClass, UINT16 deviceSubClass, UINT16 deviceProtocol)
+{
+	CP210X_SIO_CHAN *pSioChan;
+    UINT8 * pBfr;
+    UINT16 actLen;
+    UINT16 vendorId;
+    UINT16 productId;
+
+    int noOfSupportedDevices =(sizeof(cp210xAdapterList)/(2*sizeof(UINT16))) ;
+    int index = 0;
+
+    if((pBfr = OSS_MALLOC(USB_MAX_DESCR_LEN)) == NULL)
+    	return ERROR;
+
+    OSS_MUTEX_TAKE(cp210xMutex,OSS_BLOCK);
+
+	switch(attachAction){
+	case USBD_DYNA_ATTACH:
+		/*
+		 * a new device is being attached
+		 * Check if we already  have a structure for this device.
+		 */
+		if(findSioChan(nodeId)!= NULL)
+			break;
+
+
+		/*Now,we have to ensure that its a cp210x device*/
+		if (usbdDescriptorGet (cp210xHandle, nodeId, USB_RT_STANDARD | USB_RT_DEVICE,
+				USB_DESCR_DEVICE, 0, 0, 36, pBfr, &actLen) != OK)
+	    	  break;
+
+
+		vendorId = (((pUSB_DEVICE_DESCR) pBfr)->vendor);
+		productId = (((pUSB_DEVICE_DESCR) pBfr)->product);
+
+		/*
+		 * 查找支持的设备列表， 确定所接入的设备
+		 * 的vendorId 和ProductId是否在支持的设备在列表当中
+		 */
+		for (index = 0; index < noOfSupportedDevices; index++)
+			if (vendorId == cp210xAdapterList[index][0])
+				if (productId == cp210xAdapterList[index][1])
+					break;
+
+		if (index == noOfSupportedDevices ){
+			/* device not supported */
+			printf( " Unsupported device find vId %0x; pId %0x!!!\n",\
+				  vendorId, productId);
+			break;
+		}else{
+			printf("Find device vId %0x; pId %0x!!!\n",vendorId,productId);
+		}
+
+		/*
+		 * Now create a structure for the newly found device and add
+		 * it to the linked list
+		 * */
+		if((pSioChan = OSS_CALLOC(sizeof(CP210X_SIO_CHAN))) == NULL )
+	    	  break;
+
+	    pSioChan->nodeId = nodeId;
+	    pSioChan->configuration = configuration;
+	    pSioChan->interface = interface;
+	    pSioChan->vendorId = vendorId;
+	    pSioChan->productId = productId;
+
+	    /*Save a global copy of NodeID*/
+	    cp210xNodeId = nodeId;
+
+	    /* Continue fill the newly allocate structure,If there's an error,
+		 * there's nothing we can do about it, so skip the device and return immediately.
+		 */
+		if((createSioChan(pSioChan)) != OK){
+			destorySioChan(pSioChan);
+			break;
+		}
+
+	    /*ADD this structure to the linked list tail*/
+		usbListLink (&cp210xDevList, pSioChan, &pSioChan->cp210xSioLink,LINK_TAIL);
+
+	      /*将设备标记为已连接*/
+	    pSioChan->connected = TRUE;
+
+	      /* Notify registered callers that a new cp210x has been added
+	       * and a new channel created.*/
+	    notifyAttach (pSioChan, CP210X_ATTACH);
+	    break;
+
+
+
+	case USBD_DYNA_REMOVE:
+		 /* A device is being detached.
+		  * Check if we have any structures to manage this device.*/
+		if ((pSioChan = findSioChan (nodeId)) == NULL)
+			break;
+
+		/* The device has been disconnected. */
+		if(pSioChan->connected == FALSE)
+			break;
+
+		pSioChan->connected = FALSE;
+
+		/* Notify registered callers that the cp210x has been removed
+		 * and the channel disabled.
+		 *
+		 * NOTE: We temporarily increment the channel's lock count to
+		 * prevent cp210xSioChanUnlock() from destroying the
+		 * structure while we're still using it.*/
+		pSioChan->lockCount++;
+		notifyAttach (pSioChan, CP210X_REMOVE);
+
+		pSioChan->lockCount--;
+
+		/* If no callers have the channel structure locked,
+		 * destroy it now.If it is locked, it will be destroyed
+		 * later during a call to cp210xSioChanUnlock().*/
+		if (pSioChan->lockCount == 0)
+			destorySioChan (pSioChan);
+
+		break;
+	}
+
+	OSS_FREE(pBfr);
+	OSS_MUTEX_RELEASE(cp210xMutex);
+	return OK;
+}
+
+/***************************************************************************
+*
+* destroyAttachRequest - disposes of an ATTACH_REQUEST structure
+*
+* This functon disposes of an ATTACH_REQUEST structure
+*
+* RETURNS: N/A
+*
+* ERRNO: none
+*
+* \NOMANUAL
+*/
+
+LOCAL VOID destroyAttachRequest(pATTACH_REQUEST pRequest)
+{
+    /* Unlink request */
+    usbListUnlink (&pRequest->reqLink);
+
+    /* Dispose of structure */
+    OSS_FREE (pRequest);
+}
+
+
+
+/***************************************************************************
+*
+* cp210xShutdown - shuts down cp210x SIO driver
+*
+* <errCode> should be OK or S_cp210xLib_xxxx.  This value will be
+* passed to ossStatus() and the return value from ossStatus() is the
+* return value of this function.
+*
+* RETURNS: OK, or ERROR per value of <errCode> passed by caller
+*
+* ERRNO: depends on the error code <errCode>
+*
+* \NOMANUAL
+*/
+
+LOCAL STATUS cp210xShutdown(int errCode)
+{
+    CP210X_SIO_CHAN * pSioChan;
+    ATTACH_REQUEST 	*pRequest;
+
+    /*Dispose of any outstanding notification requests*/
+    while((pRequest = usbListFirst(&reqList)) != NULL)
+    	destroyAttachRequest(pRequest);
+
+
+    /* Dispose of any open connections. */
+    while ((pSioChan = usbListFirst (&cp210xDevList)) != NULL)
+    	destorySioChan (pSioChan);
+
+    /*
+     * Release our connection to the USBD.  The USBD automatically
+     * releases any outstanding dynamic attach requests when a client
+     * unregisters.
+     */
+    if (cp210xHandle != NULL){
+    	usbdClientUnregister (cp210xHandle);
+    	cp210xHandle = NULL;
+	}
+
+    /* Release resources. */
+    if (cp210xMutex != NULL){
+    	OSS_MUTEX_DESTROY (cp210xMutex);
+    	cp210xMutex = NULL;
+	}
+
+    return ossStatus (errCode);
+
+}
+
+
+/***************************************************************************
+*
+* cp210xDevInit - initializes the cp210x library
+*
+* Initizes the cp210x library. The library maintains an initialization
+* count so that the calls to this function might be nested.
+*
+* This function initializes the system resources required for the library
+* initializes the linked list for the devices found.
+* This function reegisters the library as a client for the usbd calls and
+* registers for dynamic attachment notification of usb communication device
+* class and Ethernet sub class of devices.
+*
+* RETURNS : OK if successful, ERROR if failure
+*
+* ERRNO:
+* \is
+* \i S_cp210xLib_OUT_OF_RESOURCES
+* Sufficient Resources not Available
+*
+* \i S_cp210xLib_USBD_FAULT
+* Fault in the USBD Layer
+* \ie
+*/
+STATUS cp210xDevInit (void)
+{
+	/*
+	 * if not already initialized then initialize internal structures
+	 * and connection to USBD
+	 * */
+	if(initCount == 0){
+		memset(&cp210xDevList,0,sizeof(cp210xDevList));
+		memset(&reqList,0,sizeof(reqList));
+
+		cp210xMutex		 	= NULL;
+		cp210xHandle		= NULL;
+
+		if (OSS_MUTEX_CREATE (&cp210xMutex) != OK)
+			return cp210xShutdown (S_cp210xLib_OUT_OF_RESOURCES);
+
+		if (usbdClientRegister (CP210X_CLIENT_NAME, &cp210xHandle) != OK ||
+				usbdDynamicAttachRegister (cp210xHandle,USBD_NOTIFY_ALL,USBD_NOTIFY_ALL,USBD_NOTIFY_ALL,TRUE,
+						(USBD_ATTACH_CALLBACK)cp210xLibAttachCallback)!= OK)
+			return cp210xShutdown (S_cp210xLib_USBD_FAULT);
+
+	}
+	initCount++;
+	return OK;
+}
+
+/***************************************************************************
+*
+* cp210xDevShutdown - shuts down cp210x SIO driver
+*
+* This function shutdowns the cp210x SIO driver when <initCount> becomes 0
+*
+* RETURNS: OK, or ERROR if unable to shutdown.
+*
+* ERRNO:
+* \is
+* \i S_cp210xLib_NOT_INITIALIZED
+* Printer not initialized
+* \ie
+*/
+
+STATUS cp210xDevShutdown (void) {
+    /* Shut down the cp210x SIO driver if the initCount goes to 0. */
+    if (initCount == 0)
+	return ossStatus (S_cp210xLib_NOT_INITIALIZED);
+
+    if (--initCount == 0)
+	return cp210xShutdown (OK);
+
+    return OK;
+}
+
+/***************************************************************************
+*
+* cp210xDynamicAttachRegister - register cp210x device attach callback
+*
+* <callback> is a caller-supplied function of the form:
+*
+* \cs
+* typedef (*CP210X_ATTACH_CALLBACK)
+*     (
+*     pVOID arg,
+*     CP210X_SIO_CHAN * pSioChan,
+*     UINT16 attachCode
+*     );
+* \ce
+*
+* cp210xDevLib will invoke <callback> each time a PEGASUS device
+* is attached to or removed from the system.  <arg> is a caller-defined
+* parameter which will be passed to the <callback> each time it is
+* invoked.  The <callback> will also  pass the structure of the device
+* being created/destroyed and an attach code of CP210X_ATTACH or
+* CP210X_REMOVE.
+*
+* NOTE
+* The user callback routine should not invoke any driver function that
+* submits IRPs.  Further processing must be done from a different task context.
+* As the driver routines wait for IRP completion, they cannot be invoked from
+* USBD client task's context created for this driver.
+*
+* RETURNS: OK, or ERROR if unable to register callback
+*
+* ERRNO:
+* \is
+* \i S_cp210xLib_BAD_PARAM
+* Bad Parameter received
+*
+* \i S_cp210xLib_OUT_OF_MEMORY
+* Sufficient memory no available
+* \ie
+*/
+STATUS cp210xDynamicAttachRegister(
+		CP210X_ATTACH_CALLBACK callback,	/* new callback to be registered */
+	    pVOID arg		    				/* user-defined arg to callback */
+){
+	printf("IN cp210xDynamicAttachRegister\n");
+
+	pATTACH_REQUEST pRequest;
+	CP210X_SIO_CHAN * pSioChan;
+	int status = OK;
+
+	if (callback == NULL)
+		return (ossStatus (S_cp210xLib_BAD_PARAM));
+	OSS_MUTEX_TAKE (cp210xMutex, OSS_BLOCK);
+
+	/* Create a new request structure to track this callback request.*/
+	if ((pRequest = OSS_CALLOC (sizeof (*pRequest))) == NULL){
+		status =  ossStatus (S_cp210xLib_OUT_OF_MEMORY);;
+	}else{
+			pRequest->callback = callback;
+			pRequest->callbackArg = arg;
+
+			usbListLink(&reqList, pRequest, &pRequest->reqLink, LINK_TAIL);
+
+			/* Perform an initial notification of all*/
+			/* currrently attached devices.*/
+			pSioChan = usbListFirst (&cp210xDevList);
+			while (pSioChan != NULL){
+				if (pSioChan->connected)
+					(*callback) (arg,(SIO_CHAN *)pSioChan,CP210X_ATTACH);
+
+				pSioChan = usbListNext (&pSioChan->cp210xSioLink);
+			}
+		}
+
+	OSS_MUTEX_RELEASE (cp210xMutex);
+	return ossStatus (status);
+}
+
+/***************************************************************************
+*
+* cp210xDynamicAttachUnregister - unregisters cp210x attach callback
+*
+* This function cancels a previous request to be dynamically notified for
+* attachment and removal.  The <callback> and <arg> paramters
+* must exactly match those passed in a previous call to
+* cp210xDynamicAttachRegister().
+*
+* RETURNS: OK, or ERROR if unable to unregister the callback.
+*
+* ERRNO:
+* \is
+* \i S_cp210xLib_NOT_REGISTERED
+* Could not regsiter the attachment callback
+* \ie
+*/
+
+
+STATUS cp210xDynamicAttachUnRegister(
+		CP210X_ATTACH_CALLBACK callback,	/* callback to be unregistered.*/
+		pVOID arg		    				/* user-defined arg to callback.*/
+){
+	printf("IN cp210xDynamicAttachUnRegister\n");
+
+    pATTACH_REQUEST pRequest;
+    int status = S_cp210xLib_NOT_REGISTERED;
+    OSS_MUTEX_TAKE (cp210xMutex, OSS_BLOCK);
+    pRequest = usbListFirst (&reqList);
+
+    while (pRequest != NULL){
+    	if ((callback == pRequest->callback) && (arg == pRequest->callbackArg)){
+    		/*we found a matching notification request*/
+    		destroyAttachRequest(pRequest);
+    		status = OK;
+    		break;
+    	}
+
+    	pRequest = usbListNext (&pRequest->reqLink);
+    }
+    OSS_MUTEX_RELEASE (cp210xMutex);
+    return (ossStatus(status));
+}
+
+
+/***************************************************************************
+*
+* cp210xSioChanLock - marks SIO_CHAN structure as in use
+*
+* A caller uses cp210xSioChanLock() to notify cp210xLib that
+* it is using the indicated SIO_CHAN structure.  cp210xLib maintains
+* a count of callers using a particular SIO_CHAN structure
+* so that it knows when it is safe to dispose of a structure
+* when the underlying cp210x device is removed from the system.
+* So long as the "lock count" is greater than zero,
+* cp210xLib will not dispose of an SIO_CHAN structure.
+*
+* RETURNS: OK, or ERROR if unable to mark SIO_CHAN structure in use.
+*
+* ERRNO: none
+*/
+
+STATUS cp210xSioChanLock(SIO_CHAN *pChan)
+{
+    if ( pChan == NULL)
+    	return ERROR;
+
+    CP210X_SIO_CHAN *pSioChan = (CP210X_SIO_CHAN *)pChan;
+    pSioChan->lockCount++;
+    return OK;
+}
+
+
+/***************************************************************************
+*
+* cp210xSioChanUnlock - marks SIO_CHAN structure as unused
+*
+* This function releases a lock placed on an SIO_CHAN structure.  When a
+* caller no longer needs an SIO_CHAN structure for which it has previously
+* called cp210xSioChanLock(), then it should call this function to
+* release the lock.
+*
+* NOTE
+* If the underlying cp210x device has already been removed
+* from the system, then this function will automatically dispose of the
+* SIO_CHAN structure if this call removes the last lock on the structure.
+* Therefore, a caller must not reference the SIO_CHAN structure again after
+* making this call.
+*
+* RETURNS: OK, or ERROR if unable to mark SIO_CHAN structure unused.
+*
+* ERRNO:
+* \is
+* \i S_cp210xLib_NOT_LOCKED
+* No lock to Unlock
+* \ie
+*/
+STATUS cp210xSioChanUnlock(SIO_CHAN *pChan)
+{
+    int status = OK;
+
+    if(pChan == NULL)
+    	return ERROR;
+    CP210X_SIO_CHAN *pSioChan = (CP210X_SIO_CHAN *)pChan;
+
+    OSS_MUTEX_TAKE (cp210xMutex, OSS_BLOCK);
+
+    if (pSioChan->lockCount == 0){
+    	status = S_cp210xLib_NOT_LOCKED;
+    }else{
+    	/* If this is the last lock and the underlying cp210x device
+    	 * is no longer connected, then dispose of the device.
+    	 */
+    	if (--pSioChan->lockCount == 0 && !pSioChan->connected)
+    		destorySioChan ((CP210X_SIO_CHAN *)pSioChan);
+    }
+
+    OSS_MUTEX_RELEASE (cp210xMutex);
+    return (ossStatus(status));
+}
+//===============================================================================================//
+/* start a output transport
+ * */
+LOCAL int cp210xTxStartUp(SIO_CHAN *pChan)
+{
+	printf("IN cp210xTxStartUp\n");
+//TODO
+	return EIO;
+}
+
+
+
+//===============================================================================================//
+/*cp210xCallbackInstall - install ISR callbacks to get/put chars
+* This driver allows interrupt callbacks for transmitting characters
+* and receiving characters.
+ * */
+
+LOCAL int cp210xCallbackInstall(SIO_CHAN *pChan,int callbackType,
+		STATUS(*callback)(void *tmp,...),void *callbackArg)
+{
+	printf("IN cp210xCallbackInstall now\n");
+				return OK;
+	CP210X_SIO_CHAN * pSioChan = (CP210X_SIO_CHAN *)pChan;
+	switch (callbackType){
+	case SIO_CALLBACK_GET_TX_CHAR:
+		pSioChan->getTxCharCallback = (STATUS (*)()) (callback);
+		pSioChan->getTxCharArg = callbackArg;
+		return OK;
+
+	case SIO_CALLBACK_PUT_RCV_CHAR:
+		 pSioChan->putRxCharCallback = (STATUS (*)()) (callback);
+		pSioChan->putRxCharArg = callbackArg;
+		return OK;
+
+	default:
+		return ENOSYS;
+	}
+}
+
+
+//===============================================================================================//
+/*
+ * output a character in polled mode.
+ * */
+LOCAL int cp210xPollOutput(SIO_CHAN *pChan,char outChar)
+{
+	printf("IN cp210xPollOutput");
+	//TODO
+	return OK;
+}
+
+
+//===============================================================================================//
+/*
+ * poll the device for input
+ * */
+LOCAL int cp210xPollInput(SIO_CHAN *pChan,char *thisChar)
+{
+	printf("IN cp210xPollInput\n");
+	return OK;
+//	CP210X_SIO_CHAN * pSioChan = (CP210X_SIO_CHAN *)pChan;
+	int status = OK;
+
+	if(thisChar == NULL)
+		return EIO;
+
+	OSS_MUTEX_TAKE(cp210xMutex,OSS_BLOCK);
+//	 Check if the input queue is empty.
+
+/*	if (pSioChan->inQueueCount == 0)
+		status = EAGAIN;
+	else{
+//	 Return a character from the input queue.
+		*thisChar = nextInChar (pSioChan);
+	}*/
+
+//TODO
+
+	OSS_MUTEX_RELEASE (cp210xMutex);
+	return status;
+}
+
+//===============================================================================================//
+/*
+ * cp210xIoctl - special device control
+ * this routine is largely a no-op for the function.c the only ioctls
+ * which are used by this module are the SIO_AVAIL_MODES_GET and SIO_MODE_SET.
+ *
+ *
+ * */
+LOCAL int cp210xIoctl(SIO_CHAN *pChan,	     //device to control
+		int request,	 //request code
+		void *someArg	 //some argument
+		){
+	printf("IN cp210xIoctl now\n");
+	return OK;
+}
+
+
+
+/**************************************************2017.06.21    END     cp210xLib.c*********************************************/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //=============================2017.06.20 18:30 BEGIN    solve usbdtranfer()fasongluma.==========================//
 
 #include "cp210xLib.h"
